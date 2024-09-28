@@ -1,0 +1,76 @@
+../Core/Inc/MIDI.h:172:12:unsigned int mMessage::getSysExSize()	1
+../Core/Inc/MIDI.h:179:8:constexpr mSettings::mSettings()	1
+../Core/Inc/MIDI.h:164:8:mMessage::mMessage()	1
+../Core/Src/MIDI.cpp:15:1:MidiInterface::MidiInterface()	1
+../Core/Src/MIDI.cpp:63:1:MidiInterface::~MidiInterface()	1
+../Core/Src/MIDI.cpp:73:6:void MidiInterface::begin(Channel, UART_HandleTypeDef*, UART_HandleTypeDef*)	1
+../Core/Src/MIDI.cpp:93:6:void MidiInterface::send(MidiType, DataByte, DataByte, Channel)	10
+../Core/Src/MIDI.cpp:141:6:void MidiInterface::sendNoteOn(DataByte, DataByte, Channel)	1
+../Core/Src/MIDI.cpp:158:6:void MidiInterface::sendNoteOff(DataByte, DataByte, Channel)	1
+../Core/Src/MIDI.cpp:168:6:void MidiInterface::sendProgramChange(DataByte, Channel)	1
+../Core/Src/MIDI.cpp:180:6:void MidiInterface::sendControlChange(DataByte, DataByte, Channel)	1
+../Core/Src/MIDI.cpp:193:6:void MidiInterface::sendPolyPressure(DataByte, DataByte, Channel)	1
+../Core/Src/MIDI.cpp:203:6:void MidiInterface::sendAfterTouch(DataByte, Channel)	1
+../Core/Src/MIDI.cpp:214:6:void MidiInterface::sendAfterTouch(DataByte, DataByte, Channel)	1
+../Core/Src/MIDI.cpp:226:6:void MidiInterface::sendPitchBend(int, Channel)	1
+../Core/Src/MIDI.cpp:238:6:void MidiInterface::sendPitchBend(double, Channel)	2
+../Core/Src/MIDI.cpp:254:6:void MidiInterface::sendSysEx(uint8_t, uint8_t*, bool)	4
+../Core/Src/MIDI.cpp:280:6:void MidiInterface::sendTuneRequest()	2
+../Core/Src/MIDI.cpp:295:6:void MidiInterface::sendTimeCodeQuarterFrame(DataByte, DataByte)	1
+../Core/Src/MIDI.cpp:308:6:void MidiInterface::sendTimeCodeQuarterFrame(DataByte)	2
+../Core/Src/MIDI.cpp:321:6:void MidiInterface::sendSongPosition(unsigned int)	2
+../Core/Src/MIDI.cpp:333:6:void MidiInterface::sendSongSelect(DataByte)	2
+../Core/Src/MIDI.cpp:349:6:void MidiInterface::sendRealTime(MidiType)	3
+../Core/Src/MIDI.cpp:373:6:void MidiInterface::beginRpn(unsigned int, Channel)	2
+../Core/Src/MIDI.cpp:388:6:void MidiInterface::sendRpnValue(unsigned int, Channel)	1
+../Core/Src/MIDI.cpp:402:6:void MidiInterface::sendRpnValue(uint8_t, uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:412:6:void MidiInterface::sendRpnIncrement(uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:420:6:void MidiInterface::sendRpnDecrement(uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:429:6:void MidiInterface::endRpn(Channel)	1
+../Core/Src/MIDI.cpp:440:6:void MidiInterface::beginNrpn(unsigned int, Channel)	2
+../Core/Src/MIDI.cpp:455:6:void MidiInterface::sendNrpnValue(unsigned int, Channel)	1
+../Core/Src/MIDI.cpp:469:6:void MidiInterface::sendNrpnValue(uint8_t, uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:479:6:void MidiInterface::sendNrpnIncrement(uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:488:6:void MidiInterface::sendNrpnDecrement(uint8_t, Channel)	1
+../Core/Src/MIDI.cpp:498:6:void MidiInterface::endNrpn(Channel)	1
+../Core/Src/MIDI.cpp:506:12:StatusByte MidiInterface::getStatus(MidiType, Channel)	1
+../Core/Src/MIDI.cpp:519:6:bool MidiInterface::read()	1
+../Core/Src/MIDI.cpp:526:6:bool MidiInterface::read(Channel)	4
+../Core/Src/MIDI.cpp:545:6:bool MidiInterface::parse2()	7
+../Core/Src/MIDI.cpp:585:6:bool MidiInterface::parse()	51
+../Core/Src/MIDI.cpp:833:6:void MidiInterface::handleNullVelocityNoteOnAsNoteOff()	5
+../Core/Src/MIDI.cpp:842:6:bool MidiInterface::inputFilter(Channel)	5
+../Core/Src/MIDI.cpp:864:6:void MidiInterface::resetInput()	1
+../Core/Src/MIDI.cpp:877:10:MidiType MidiInterface::getType()	1
+../Core/Src/MIDI.cpp:887:9:Channel MidiInterface::getChannel()	1
+../Core/Src/MIDI.cpp:893:10:DataByte MidiInterface::getData1()	1
+../Core/Src/MIDI.cpp:899:10:DataByte MidiInterface::getData2()	1
+../Core/Src/MIDI.cpp:908:7:uint8_t* MidiInterface::getSysExArray()	1
+../Core/Src/MIDI.cpp:918:10:unsigned int MidiInterface::getSysExArrayLength()	1
+../Core/Src/MIDI.cpp:924:6:bool MidiInterface::check()	1
+../Core/Src/MIDI.cpp:930:9:Channel MidiInterface::getInputChannel()	1
+../Core/Src/MIDI.cpp:939:6:void MidiInterface::setInputChannel(Channel)	1
+../Core/Src/MIDI.cpp:951:10:static MidiType MidiInterface::getTypeFromStatusByte(uint8_t)	7
+../Core/Src/MIDI.cpp:969:9:static Channel MidiInterface::getChannelFromStatusByte(uint8_t)	1
+../Core/Src/MIDI.cpp:974:6:static bool MidiInterface::isChannelMessage(MidiType)	8
+../Core/Src/MIDI.cpp:980:6:void MidiInterface::setHandleNoteOff(void (*)(uint8_t, uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:984:6:void MidiInterface::setHandleNoteOn(void (*)(uint8_t, uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:988:6:void MidiInterface::setHandleAfterTouchPoly(void (*)(uint8_t, uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:992:6:void MidiInterface::setHandleControlChange(void (*)(uint8_t, uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:996:6:void MidiInterface::setHandleProgramChange(void (*)(uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:1000:6:void MidiInterface::setHandleAfterTouchChannel(void (*)(uint8_t, uint8_t))	1
+../Core/Src/MIDI.cpp:1004:6:void MidiInterface::setHandlePitchBend(void (*)(uint8_t, int))	1
+../Core/Src/MIDI.cpp:1007:6:void MidiInterface::setHandleSystemExclusive(void (*)(uint8_t*, unsigned int))	1
+../Core/Src/MIDI.cpp:1011:6:void MidiInterface::setHandleTimeCodeQuarterFrame(void (*)(uint8_t))	1
+../Core/Src/MIDI.cpp:1014:6:void MidiInterface::setHandleSongPosition(void (*)(unsigned int))	1
+../Core/Src/MIDI.cpp:1017:6:void MidiInterface::setHandleSongSelect(void (*)(uint8_t))	1
+../Core/Src/MIDI.cpp:1020:6:void MidiInterface::setHandleTuneRequest(void (*)())	1
+../Core/Src/MIDI.cpp:1023:6:void MidiInterface::setHandleClock(void (*)())	1
+../Core/Src/MIDI.cpp:1026:6:void MidiInterface::setHandleStart(void (*)())	1
+../Core/Src/MIDI.cpp:1029:6:void MidiInterface::setHandleContinue(void (*)())	1
+../Core/Src/MIDI.cpp:1032:6:void MidiInterface::setHandleStop(void (*)())	1
+../Core/Src/MIDI.cpp:1035:6:void MidiInterface::setHandleActiveSensing(void (*)())	1
+../Core/Src/MIDI.cpp:1038:6:void MidiInterface::setHandleSystemReset(void (*)())	1
+../Core/Src/MIDI.cpp:1048:6:void MidiInterface::disconnectCallbackFromType(MidiType)	19
+../Core/Src/MIDI.cpp:1111:6:void MidiInterface::launchCallback()	37
+../Core/Src/MIDI.cpp:1209:6:void MidiInterface::thruFilter(Channel)	20

@@ -1,0 +1,3 @@
+../Core/Src/MidiHandlers.cpp:13:6:void Handle_Clock()	2
+../Core/Src/MidiHandlers.cpp:21:6:void Handle_Start()	1
+../Core/Src/MidiHandlers.cpp:26:6:void Handle_Stop()	1
