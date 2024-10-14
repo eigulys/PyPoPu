@@ -63,6 +63,8 @@ void Error_Handler(void);
 #define gate2_GPIO_Port GPIOB
 #define gate3_Pin GPIO_PIN_2
 #define gate3_GPIO_Port GPIOB
+#define kPinSS_Pin GPIO_PIN_8
+#define kPinSS_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

@@ -22,9 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include <math.h>
+//#include <math.h>
 #include "MIDI.h"
 #include "MidiHandlers.h"
+#include "mcp4728_mod.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,10 @@
 DAC_HandleTypeDef hdac1;
 DAC_HandleTypeDef hdac2;
 
+I2C_HandleTypeDef hi2c1;
+
+SPI_HandleTypeDef hspi2;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -69,6 +74,8 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_DAC2_Init(void);
+static void MX_SPI2_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -81,7 +88,7 @@ MidiInterface Port;
 
 void Handle_NoteOn(uint8_t status, uint8_t data1, uint8_t data2);
 void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
-
+void Handle_CC(byte channel, byte number, byte value);
 
 
 //	HAL_TIM_Base_Start_IT(&htim16);
@@ -123,21 +130,29 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DAC1_Init();
   MX_DAC2_Init();
+  MX_SPI2_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 	Port.begin(1, &huart1, &huart1);
-	/*Set Callbacks*/
+
 	Port.setHandleClock(Handle_Clock);
 	Port.setHandleStart(Handle_Start);
 	Port.setHandleStop(Handle_Stop);
-
 	Port.setHandleNoteOn(Handle_NoteOn);
 	Port.setHandleNoteOff(Handle_NoteOff);
+	Port.setHandleControlChange(Handle_CC);
 
 //	 printf("Great Succes!\n\r");
 
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_Start(&hdac2, DAC_CHANNEL_1);
+    HAL_SPI_Init(&hspi2);
+
+    ChannelConfig config;
+    ChannelConfig_2 config2;
+    dac_init(&config, &config2);
+
 
   /* USER CODE END 2 */
 
@@ -166,10 +181,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -191,8 +207,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
+  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -287,6 +304,94 @@ static void MX_DAC2_Init(void)
 }
 
 /**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00201D2B;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_16BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -337,12 +442,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, gate1_Pin|gate2_Pin|gate3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(kPinSS_GPIO_Port, kPinSS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -358,6 +467,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : kPinSS_Pin */
+  GPIO_InitStruct.Pin = kPinSS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(kPinSS_GPIO_Port, &GPIO_InitStruct);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -369,22 +485,29 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4096));  // Calculate pitch CV from MIDI note
-    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 4095);
-
+    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 65535);
+    ChannelConfig config;
     // If no notes are currently active, send the first note to DAC_CHANNEL_1
     if (!first_note_active) {
         pitch1_CV = pitch_CV;
         HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
         HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
+
+          config.val[0] = pitch1_CV;  // 12-bit DAC value for channel A
+          config.val[1] = velo_CV;  // 12-bit DAC value for channel B
+    	  DACx60FW(&hi2c1, config);
+
+//        if (dac.ready()) {
+//         dac.Write((uint16_t)pitch1_CV, 30000);
         // Also output the same value to DAC_CHANNEL_2 as default
-        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
-        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
+//        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
+//        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
         first_note_active = true;  // First note is now active
     }
     // If the first note is active and second note is not yet playing, output second note on DAC_CHANNEL_2
     else if (!second_note_active) {
         pitch2_CV = pitch_CV;
-        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch2_CV);
+//        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch2_CV);
         HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_SET);  // Indicate second note is on via gate2_Pin
         second_note_active = true;  // Second note is now active
     }
@@ -404,6 +527,13 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
         HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_RESET);  // Turn off gate for second note
         second_note_active = false;  // Second note is no longer active
     }
+}
+
+void Handle_CC(byte channel, byte number, byte value) {
+	if (number == ModulationWheel){
+		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+		HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+	}
 }
 /* USER CODE END 4 */
 

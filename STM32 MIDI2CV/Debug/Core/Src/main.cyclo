@@ -1,13 +1,16 @@
-../Core/Src/main.cpp:98:5:int main()	1
-../Core/Src/main.cpp:160:6:void SystemClock_Config()	4
-../Core/Src/main.cpp:207:13:void MX_DAC1_Init()	4
-../Core/Src/main.cpp:254:13:void MX_DAC2_Init()	3
-../Core/Src/main.cpp:294:13:void MX_USART1_UART_Init()	2
-../Core/Src/main.cpp:329:13:void MX_GPIO_Init()	1
-../Core/Src/main.cpp:366:6:void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)	1
-../Core/Src/main.cpp:370:6:void Handle_NoteOn(uint8_t, uint8_t, uint8_t)	3
-../Core/Src/main.cpp:393:6:void Handle_NoteOff(uint8_t, uint8_t, uint8_t)	3
-../Core/Src/main.cpp:414:6:void Error_Handler()	1
-../Core/Src/main.cpp:423:1:void __static_initialization_and_destruction_0(int, int)	5
-../Core/Src/main.cpp:423:1:cpp)	1
-../Core/Src/main.cpp:423:1:cpp)	1
+../Core/Src/main.cpp:105:5:int main()	1
+../Core/Src/main.cpp:175:6:void SystemClock_Config()	4
+../Core/Src/main.cpp:224:13:void MX_DAC1_Init()	4
+../Core/Src/main.cpp:271:13:void MX_DAC2_Init()	3
+../Core/Src/main.cpp:311:13:void MX_I2C1_Init()	4
+../Core/Src/main.cpp:359:13:void MX_SPI2_Init()	2
+../Core/Src/main.cpp:399:13:void MX_USART1_UART_Init()	2
+../Core/Src/main.cpp:434:13:void MX_GPIO_Init()	1
+../Core/Src/main.cpp:482:6:void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)	1
+../Core/Src/main.cpp:486:6:void Handle_NoteOn(uint8_t, uint8_t, uint8_t)	3
+../Core/Src/main.cpp:516:6:void Handle_NoteOff(uint8_t, uint8_t, uint8_t)	3
+../Core/Src/main.cpp:532:6:void Handle_CC(uint8_t, uint8_t, uint8_t)	2
+../Core/Src/main.cpp:544:6:void Error_Handler()	1
+../Core/Src/main.cpp:553:1:void __static_initialization_and_destruction_0(int, int)	5
+../Core/Src/main.cpp:553:1:cpp)	1
+../Core/Src/main.cpp:553:1:cpp)	1
