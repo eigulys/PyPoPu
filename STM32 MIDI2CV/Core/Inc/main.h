@@ -57,14 +57,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define TIM7_PSC 71
+#define SH_TIME 7
 #define gate1_Pin GPIO_PIN_0
 #define gate1_GPIO_Port GPIOB
 #define gate2_Pin GPIO_PIN_1
 #define gate2_GPIO_Port GPIOB
 #define gate3_Pin GPIO_PIN_2
 #define gate3_GPIO_Port GPIOB
-#define kPinSS_Pin GPIO_PIN_8
-#define kPinSS_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

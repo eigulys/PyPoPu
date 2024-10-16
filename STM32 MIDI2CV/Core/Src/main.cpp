@@ -26,12 +26,17 @@
 #include "MIDI.h"
 #include "MidiHandlers.h"
 #include "mcp4728_mod.h"
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
+#include <adsr.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 #define X 0.25 // santykis
+#define NUM_ENVELOPES 2
+ADSR_t envelopes[NUM_ENVELOPES]; // Array to hold the ADSR envelopes
 
 
 /* USER CODE END PTD */
@@ -52,8 +57,11 @@ DAC_HandleTypeDef hdac1;
 DAC_HandleTypeDef hdac2;
 
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi2;
+
+TIM_HandleTypeDef htim7;
 
 UART_HandleTypeDef huart1;
 
@@ -66,6 +74,9 @@ uint32_t pitch1_CV;
 uint32_t pitch2_CV;
 uint8_t first_note;
 
+extern ADSR_t adsr;
+float env1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -76,25 +87,58 @@ static void MX_DAC1_Init(void);
 static void MX_DAC2_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_I2C2_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int _write(int file, char *ptr, int len)
+ {
+	 int DataIdx;
+	 for (DataIdx = 0; DataIdx < len; DataIdx++)
+	 {
+		 ITM_SendChar(*ptr++);
+	 }
+	 return len;
+ }
 /* Initialize MidiInterface object */
 MidiInterface Port;
 
 void Handle_NoteOn(uint8_t status, uint8_t data1, uint8_t data2);
 void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
 void Handle_CC(byte channel, byte number, byte value);
+void Handle_CC16(byte channel, byte number, byte value);
 
 
 //	HAL_TIM_Base_Start_IT(&htim16);
     // Additional configuration code
 
+// Convert envelope value (0.0 - 1.0) to DAC value (0 - 4095)
+uint32_t envelope_to_dac_value(float envelope_value) {
+    return (uint32_t)(envelope_value * 4095.0f);
+}
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == TIM7) {
+        // Update each ADSR envelope
+        for (int i = 0; i < NUM_ENVELOPES; i++) {
+            ADSR_UpdateEnvelope(&envelopes[i]);
+
+            // Output each envelope value to a DAC channel
+            uint32_t dac_value = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[i]));
+            if (i == 0) {
+                // Output to DAC Channel 1
+                HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
+            } else if (i == 1) {
+                // Output to DAC Channel 2 (if available)
+                HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
+            }
+        }
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -106,7 +150,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	char tekstas[] = "LOST MY SHIT";
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -132,6 +176,8 @@ int main(void)
   MX_DAC2_Init();
   MX_SPI2_Init();
   MX_I2C1_Init();
+  MX_I2C2_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 	Port.begin(1, &huart1, &huart1);
 
@@ -153,6 +199,18 @@ int main(void)
     ChannelConfig_2 config2;
     dac_init(&config, &config2);
 
+    ssd1306_Init();
+    ssd1306_SetCursor(5, 50);
+    ssd1306_WriteString(tekstas, Font_7x10, White);
+    ssd1306_UpdateScreen();
+
+    for (int i = 0; i < NUM_ENVELOPES; i++) {
+        ADSR_Init(&envelopes[i]);
+    }
+
+    HAL_TIM_Base_Start_IT(&htim7);
+    printf("INIT done \n");
+
 
   /* USER CODE END 2 */
 
@@ -164,6 +222,15 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 		Port.read();
+//        ADSR_SetGateSignal(&envelopes[0], 1);  // Gate signal ON for envelope 0
+//        ADSR_SetGateSignal(&envelopes[1], 0);  // Gate signal ON for envelope 1
+//        HAL_Delay(500);  // Keep gate signals ON for 500 ms
+//
+//        // Simulate gate signal OFF for both envelopes
+//        ADSR_SetGateSignal(&envelopes[0], 0);  // Gate signal OFF for envelope 0
+//        ADSR_SetGateSignal(&envelopes[1], 1);  // Gate signal OFF for envelope 1
+//        HAL_Delay(1000);  // Wait for 1 second before repeating
+
   }
   /* USER CODE END 3 */
 }
@@ -207,9 +274,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1
+                              |RCC_PERIPHCLK_I2C2;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
+  PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_HSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -352,6 +421,54 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.Timing = 0x0010020A;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -388,6 +505,44 @@ static void MX_SPI2_Init(void)
   /* USER CODE BEGIN SPI2_Init 2 */
 
   /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 7199;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 1;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
 
 }
 
@@ -450,9 +605,6 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, gate1_Pin|gate2_Pin|gate3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(kPinSS_GPIO_Port, kPinSS_Pin, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -467,13 +619,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : kPinSS_Pin */
-  GPIO_InitStruct.Pin = kPinSS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(kPinSS_GPIO_Port, &GPIO_InitStruct);
-
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -483,19 +628,33 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	__NOP();
 }
 
+
 void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4096));  // Calculate pitch CV from MIDI note
     uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 65535);
     ChannelConfig config;
+//    oled("Note On \n");
+//    ADSR_SetGateSignal(&envelopes[0], 1);
+//    oled("SET times \n");
+
+//    oled("ADSR On \n");
+//    env1 = ADSR_computeSample(&adsr);
+//    oled("ADSR compute\n");
+
+
+
+
     // If no notes are currently active, send the first note to DAC_CHANNEL_1
     if (!first_note_active) {
         pitch1_CV = pitch_CV;
-        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
-        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
-
-          config.val[0] = pitch1_CV;  // 12-bit DAC value for channel A
-          config.val[1] = velo_CV;  // 12-bit DAC value for channel B
-    	  DACx60FW(&hi2c1, config);
+        oled("nata gauta");
+        ADSR_SetGateSignal(&envelopes[0], 1);
+//        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
+//        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
+//
+//          config.val[0] = pitch1_CV;  // 12-bit DAC value for channel A
+//          config.val[1] = velo_CV;  // 12-bit DAC value for channel B
+//    	  DACx60FW(&hi2c1, config);
 
 //        if (dac.ready()) {
 //         dac.Write((uint16_t)pitch1_CV, 30000);
@@ -514,12 +673,18 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 	}
 
 void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+//	ADSR_SetGateSignal(&envelopes[0], 0);
+//    env1 = ADSR_computeSample(&adsr);
 
-    // If the first note is off
+
+   // If the first note is off
+
     if (first_note_active) {
+    	ADSR_SetGateSignal(&envelopes[0], 0);
 
         HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // Turn off gate for first note
         first_note_active = false;  // First note is no longer active
+
     }
     // If the second note is off
     else if (second_note_active) {
@@ -532,9 +697,21 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 void Handle_CC(byte channel, byte number, byte value) {
 	if (number == ModulationWheel){
 		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+//		ADSR_SetAttackRate(&envelopes[0], float(value / 127.0));
 		HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+
 	}
 }
+
+
+
+//void Handle_CC16(byte channel, byte number, byte value) {
+//	if (number == GeneralPurposeController1){					//    CC16
+//		uint32_t ATTACK = (uint32_t)((value / 127.0) * 4095);
+//		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, ATTACK);
+//	}
+//}
+
 /* USER CODE END 4 */
 
 /**
