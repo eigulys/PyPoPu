@@ -62,6 +62,7 @@ I2C_HandleTypeDef hi2c2;
 SPI_HandleTypeDef hspi2;
 
 TIM_HandleTypeDef htim7;
+TIM_HandleTypeDef htim13;
 
 UART_HandleTypeDef huart1;
 
@@ -77,6 +78,8 @@ uint8_t first_note;
 extern ADSR_t adsr;
 float env1;
 
+volatile bool update_adsr_flag = false;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,6 +92,7 @@ static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM7_Init(void);
+static void MX_TIM13_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -111,12 +115,18 @@ void Handle_NoteOn(uint8_t status, uint8_t data1, uint8_t data2);
 void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
 void Handle_CC(byte channel, byte number, byte value);
 void Handle_CC16(byte channel, byte number, byte value);
+void ADSR_HandleCC(byte channel, byte number, byte value);
 
 
 //	HAL_TIM_Base_Start_IT(&htim16);
     // Additional configuration code
 
 // Convert envelope value (0.0 - 1.0) to DAC value (0 - 4095)
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+//    if (htim->Instance == TIM13) {
+//        update_adsr_flag = true;  // Set the flag to update ADSR parameters
+//    }
+//}
 uint32_t envelope_to_dac_value(float envelope_value) {
     return (uint32_t)(envelope_value * 4095.0f);
 }
@@ -128,6 +138,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             ADSR_UpdateEnvelope(&envelopes[i]);
 
             // Output each envelope value to a DAC channel
+
             uint32_t dac_value = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[i]));
             if (i == 0) {
                 // Output to DAC Channel 1
@@ -178,6 +189,7 @@ int main(void)
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_TIM7_Init();
+  MX_TIM13_Init();
   /* USER CODE BEGIN 2 */
 	Port.begin(1, &huart1, &huart1);
 
@@ -186,7 +198,9 @@ int main(void)
 	Port.setHandleStop(Handle_Stop);
 	Port.setHandleNoteOn(Handle_NoteOn);
 	Port.setHandleNoteOff(Handle_NoteOff);
-	Port.setHandleControlChange(Handle_CC);
+//	Port.setHandleControlChange(Handle_CC);
+//	Port.setHandleControlChange(Handle_CC16);
+//	Port.setHandleControlChange(ADSR_HandleCC);
 
 //	 printf("Great Succes!\n\r");
 
@@ -209,6 +223,7 @@ int main(void)
     }
 
     HAL_TIM_Base_Start_IT(&htim7);
+    HAL_TIM_Base_Start_IT(&htim13);
     printf("INIT done \n");
 
 
@@ -547,6 +562,37 @@ static void MX_TIM7_Init(void)
 }
 
 /**
+  * @brief TIM13 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM13_Init(void)
+{
+
+  /* USER CODE BEGIN TIM13_Init 0 */
+
+  /* USER CODE END TIM13_Init 0 */
+
+  /* USER CODE BEGIN TIM13_Init 1 */
+
+  /* USER CODE END TIM13_Init 1 */
+  htim13.Instance = TIM13;
+  htim13.Init.Prescaler = 7199;
+  htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim13.Init.Period = 100;
+  htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM13_Init 2 */
+
+  /* USER CODE END TIM13_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -647,7 +693,7 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     // If no notes are currently active, send the first note to DAC_CHANNEL_1
     if (!first_note_active) {
         pitch1_CV = pitch_CV;
-        oled("nata gauta");
+
         ADSR_SetGateSignal(&envelopes[0], 1);
 //        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
 //        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
@@ -694,16 +740,58 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     }
 }
 
-void Handle_CC(byte channel, byte number, byte value) {
-	if (number == ModulationWheel){
-		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+//void Handle_CC(byte channel, byte number, byte value) {
+//	if (number == ModulationWheel){
+////		adsr->attack_rate = (value / 127.0f) * 0.01f;
+////		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
 //		ADSR_SetAttackRate(&envelopes[0], float(value / 127.0));
-		HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+////		HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+//
+//	}
+//}
+//
+//void setHandleControlChange(byte channel, byte number, byte value) {
+//	if (number == 16){
+//
+////		adsr->attack_rate = (value / 127.0f) * 0.01f;
+////		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+//		ADSR_SetSustainLevel(&envelopes[0], float(value / 127.0f));
+//		env1 = value;
+//
+//
+//	}
+//}
 
-	}
+void ADSR_HandleCC(byte channel, byte number, byte value) {
+	if (channel < NUM_ENVELOPES) {
+//    if (channel == 1) {
+		oled("cc gauta");
+        ADSR_t *adsr = &envelopes[channel-1];
+    switch (number) {
+        case 74: // Brightness controls Attack
+        	oled("attack");
+//            adsr->attack_rate = (value / 127.0f) * 0.01f;  // Scale 0-127 to 0.001 - 0.01
+            adsr->attack_rate = (value / 127.0f);  // Scale 0-127 to 0.001 - 0.01
+            break;
+
+        case 71: // Resonance controls Decay
+            adsr->decay_rate = (value / 127.0f) * 0.01f;   // Scale 0-127 to 0.001 - 0.01
+            break;
+
+        case 73: // Release Time controls Release
+            adsr->release_rate = (value / 127.0f) * 0.01f; // Scale 0-127 to 0.001 - 0.01
+            break;
+
+        case 72: // Decay Time controls Sustain
+            adsr->sustain_level = value / 127.0f;          // Scale 0-127 to 0.0 - 1.0
+            break;
+
+        default:
+            // Handle other CC messages or ignore
+            break;
+    }
 }
-
-
+}
 
 //void Handle_CC16(byte channel, byte number, byte value) {
 //	if (number == GeneralPurposeController1){					//    CC16
