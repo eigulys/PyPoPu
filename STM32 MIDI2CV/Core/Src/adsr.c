@@ -5,14 +5,14 @@
 
 // Initializes an individual ADSR instance
 void ADSR_Init(ADSR_t *adsr) {
-    adsr->state = IDLE;
-    adsr->envelope_value = 0.0f;
-    adsr->attack_rate = 0.01f;  // Default rates, can be modified by MIDI or control signals
-    adsr->decay_rate = 0.001f;
-    adsr->sustain_level = 0.8f;
-    adsr->release_rate = 0.001f;
-    adsr->gate_signal = 0;
-    adsr->amplitude = 1.0f;      // Default amplitude is 1.0 (full volume)
+//    adsr->state = IDLE;
+//    adsr->envelope_value = 0.0f;
+//    adsr->attack_rate = 0.01f;  // Default rates, can be modified by MIDI or control signals
+//    adsr->decay_rate = 0.001f;
+//    adsr->sustain_level = 0.8f;
+//    adsr->release_rate = 0.001f;
+//    adsr->gate_signal = 0;
+//    adsr->amplitude = 1.0f;      // Default amplitude is 1.0 (full volume)
 }
 
 // Updates the envelope for a specific ADSR instance
@@ -68,12 +68,12 @@ void ADSR_SetGateSignal(ADSR_t *adsr, uint8_t gate_signal_value) {
 
 
 // Set attack rate for a specific ADSR instance
-void ADSR_SetAttackRate(ADSR_t *adsr, float attack_rate) {
-    if (attack_rate < 0.001f) {
-        attack_rate = 0.001f;  // Minimum limit
-    }
-    adsr->attack_rate = attack_rate;
-}
+//void ADSR_SetAttackRate(ADSR_t *adsr, float attack_rate) {
+//    if (attack_rate < 0.001f) {
+//        attack_rate = 0.001f;  // Minimum limit
+//    }
+//    adsr->attack_rate = attack_rate;
+//}
 
 // Set decay rate for a specific ADSR instance
 void ADSR_SetDecayRate(ADSR_t *adsr, float decay_rate) {

@@ -2,6 +2,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>  // For memcpy
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "ssd1306_fonts.h"
 
@@ -601,4 +603,15 @@ void oled(const char* text)
     ssd1306_SetCursor(5, 5);
     ssd1306_WriteString(text, Font_7x10, White);
     ssd1306_UpdateScreen();
+}
+
+void oled2(const char* format, ...) {
+    char buffer[64];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    // Call the actual function to display the text on the OLED
+    oled(buffer);
 }

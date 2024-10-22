@@ -12,12 +12,6 @@
 
 #include "MIDI.h"
 #include "stm32f3xx_hal.h"
-
-//#define DMA_RX_BUFFER_SIZE 64  // Adjust size as needed
-//uint8_t dma_rx_buffer[DMA_RX_BUFFER_SIZE];  // DMA buffer for UART RX
-//
-//volatile uint16_t old_pos = 0;  // Tracks the last position we read from the buffer
-
 MidiInterface::MidiInterface() {
 	mRunningStatus_TX = InvalidType;
 	mRunningStatus_RX = InvalidType;
@@ -637,26 +631,6 @@ bool MidiInterface::parse() {
 		}
 
 
-//	bool MidiInterface::parse() {
-//	    uint16_t new_pos = DMA_RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(huart1.hdmarx);  // Get current DMA position
-//
-//	    if (new_pos != old_pos) {
-//	        // Check if buffer has new data to process
-//	        if (new_pos > old_pos) {
-//	            // Process data between old_pos and new_pos
-//	            process_midi_data(&dma_rx_buffer[old_pos], new_pos - old_pos);
-//	        } else {
-//	            // Handle wrap-around case (circular buffer)
-//	            process_midi_data(&dma_rx_buffer[old_pos], DMA_RX_BUFFER_SIZE - old_pos);
-//	            process_midi_data(&dma_rx_buffer[0], new_pos);
-//	        }
-//
-//	        // Update old_pos to the new position
-//	        old_pos = new_pos;
-//	    }
-//
-//	    return true;  // Indicate that data was processed
-//	}
 
 
 

@@ -49,6 +49,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -57,8 +59,9 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define TIM7_PSC 71
-#define SH_TIME 7
+#define periodas 0
+#define daliklis 0
+#define pulsas 0
 #define gate1_Pin GPIO_PIN_0
 #define gate1_GPIO_Port GPIOB
 #define gate2_Pin GPIO_PIN_1

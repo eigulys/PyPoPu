@@ -22,13 +22,15 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-//#include <math.h>
+#include <math.h>
 #include "MIDI.h"
 #include "MidiHandlers.h"
 #include "mcp4728_mod.h"
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
 #include <adsr.h>
+#include "lookup_t.h"
+#include "midi2freq.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,8 +38,15 @@
 
 #define X 0.25 // santykis
 #define NUM_ENVELOPES 2
-ADSR_t envelopes[NUM_ENVELOPES]; // Array to hold the ADSR envelopes
 
+// Define the MIDI CC numbers for the ADSR parameters
+#define ATTACK_CC 74     // Brightness or Attack CC number
+#define DECAY_CC 71      // Resonance or Decay CC number
+#define SUSTAIN_CC 72    // Decay Time or Sustain level CC number
+#define RELEASE_CC 73    // Release Time CC number
+#define AMPLITUDE_CC 7   // Volume or Amplitude CC number
+
+//#define SystemCoreClock 72000000
 
 /* USER CODE END PTD */
 
@@ -61,6 +70,7 @@ I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi2;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim13;
 
@@ -70,6 +80,7 @@ UART_HandleTypeDef huart1;
 
 bool first_note_active = false;
 bool second_note_active = false;
+volatile bool update_adsr_flag = false;
 
 uint32_t pitch1_CV;
 uint32_t pitch2_CV;
@@ -77,8 +88,8 @@ uint8_t first_note;
 
 extern ADSR_t adsr;
 float env1;
+ADSR_t envelopes[NUM_ENVELOPES]; // Array to hold the ADSR envelopes
 
-volatile bool update_adsr_flag = false;
 
 /* USER CODE END PV */
 
@@ -93,6 +104,7 @@ static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM7_Init(void);
 static void MX_TIM13_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -108,6 +120,18 @@ int _write(int file, char *ptr, int len)
 	 }
 	 return len;
  }
+
+typedef struct {
+    byte attack_value;
+    byte decay_value;
+    byte sustain_value;
+    byte release_value;
+    byte amplitude_value;
+} ADSR_CC_Values;
+
+// Array to store the last known MIDI CC values for each envelope
+ADSR_CC_Values cc_values[NUM_ENVELOPES];
+
 /* Initialize MidiInterface object */
 MidiInterface Port;
 
@@ -121,17 +145,32 @@ void ADSR_HandleCC(byte channel, byte number, byte value);
 //	HAL_TIM_Base_Start_IT(&htim16);
     // Additional configuration code
 
+void setupPWM(uint32_t frequency) {
+    uint32_t period = (SystemCoreClock / frequency) - 1;
+
+    // Update the timer period
+    __HAL_TIM_SET_AUTORELOAD(&htim2, period);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, period / 2); // 50% duty cycle
+    __HAL_TIM_SET_COUNTER(&htim2, 0); // Reset counter
+
+    // Start PWM if not already started
+    if (HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1) != HAL_OK) {
+        // PWM start error handling
+    }
+}
+
 // Convert envelope value (0.0 - 1.0) to DAC value (0 - 4095)
-//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-//    if (htim->Instance == TIM13) {
-//        update_adsr_flag = true;  // Set the flag to update ADSR parameters
-//    }
-//}
 uint32_t envelope_to_dac_value(float envelope_value) {
     return (uint32_t)(envelope_value * 4095.0f);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+
+//    if (htim->Instance == TIM13) {
+//        update_adsr_flag = true;  // Set the flag to update ADSR parameters
+// //       oled("ADSR Flag = TRUE");
+//    }
+
     if (htim->Instance == TIM7) {
         // Update each ADSR envelope
         for (int i = 0; i < NUM_ENVELOPES; i++) {
@@ -149,7 +188,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
             }
         }
     }
+    if (htim->Instance == TIM2) {
+        // Handle TIM2 period elapsed interrupt
+    }
 }
+
+
+
 
 /* USER CODE END 0 */
 
@@ -190,6 +235,7 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM7_Init();
   MX_TIM13_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 	Port.begin(1, &huart1, &huart1);
 
@@ -200,7 +246,7 @@ int main(void)
 	Port.setHandleNoteOff(Handle_NoteOff);
 //	Port.setHandleControlChange(Handle_CC);
 //	Port.setHandleControlChange(Handle_CC16);
-//	Port.setHandleControlChange(ADSR_HandleCC);
+	Port.setHandleControlChange(ADSR_HandleCC);
 
 //	 printf("Great Succes!\n\r");
 
@@ -218,13 +264,28 @@ int main(void)
     ssd1306_WriteString(tekstas, Font_7x10, White);
     ssd1306_UpdateScreen();
 
-    for (int i = 0; i < NUM_ENVELOPES; i++) {
-        ADSR_Init(&envelopes[i]);
-    }
-
     HAL_TIM_Base_Start_IT(&htim7);
     HAL_TIM_Base_Start_IT(&htim13);
-    printf("INIT done \n");
+    HAL_TIM_Base_Start(&htim2);
+
+    // Initialize each ADSR envelope and set the default MIDI values
+    for (int i = 0; i < NUM_ENVELOPES; i++) {
+        ADSR_Init(&envelopes[i]);
+
+        // Initialize CC values to some default values (you can use defaults or assume MIDI will update)
+        cc_values[i].attack_value = 64;  // Default to a middle value for attack, you can choose another default
+        cc_values[i].decay_value = 64;
+        cc_values[i].sustain_value = 64;
+        cc_values[i].release_value = 64;
+        cc_values[i].amplitude_value = 127;  // Max volume by default
+
+        // Apply the stored MIDI values to initialize ADSR settings
+        ADSR_HandleCC(i, ATTACK_CC, cc_values[i].attack_value);
+        ADSR_HandleCC(i, DECAY_CC, cc_values[i].decay_value);
+        ADSR_HandleCC(i, SUSTAIN_CC, cc_values[i].sustain_value);
+        ADSR_HandleCC(i, RELEASE_CC, cc_values[i].release_value);
+        ADSR_HandleCC(i, AMPLITUDE_CC, cc_values[i].amplitude_value);
+    }
 
 
   /* USER CODE END 2 */
@@ -524,6 +585,55 @@ static void MX_SPI2_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 0;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
   * @brief TIM7 Initialization Function
   * @param None
   * @retval None
@@ -694,6 +804,13 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     if (!first_note_active) {
         pitch1_CV = pitch_CV;
 
+
+            // Calculate frequency from MIDI note
+        float frequency = midi2freq[note];
+        setupPWM((uint32_t)frequency);
+
+
+
         ADSR_SetGateSignal(&envelopes[0], 1);
 //        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
 //        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
@@ -706,7 +823,7 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 //         dac.Write((uint16_t)pitch1_CV, 30000);
         // Also output the same value to DAC_CHANNEL_2 as default
 //        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
-//        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
+        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
         first_note_active = true;  // First note is now active
     }
     // If the first note is active and second note is not yet playing, output second note on DAC_CHANNEL_2
@@ -730,6 +847,9 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 
         HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // Turn off gate for first note
         first_note_active = false;  // First note is no longer active
+
+        // Note off, stop PWM
+//        HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
 
     }
     // If the second note is off
@@ -763,34 +883,48 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 //}
 
 void ADSR_HandleCC(byte channel, byte number, byte value) {
-	if (channel < NUM_ENVELOPES) {
-//    if (channel == 1) {
-		oled("cc gauta");
-        ADSR_t *adsr = &envelopes[channel-1];
-    switch (number) {
-        case 74: // Brightness controls Attack
-        	oled("attack");
-//            adsr->attack_rate = (value / 127.0f) * 0.01f;  // Scale 0-127 to 0.001 - 0.01
-            adsr->attack_rate = (value / 127.0f);  // Scale 0-127 to 0.001 - 0.01
+ //   if (channel < NUM_ENVELOPES && update_adsr_flag) {
+	int envelope_index = channel - 1;
+//    	if (channel < NUM_ENVELOPES) {
+    	    if (envelope_index >= 0 && envelope_index < NUM_ENVELOPES) {
+    	        ADSR_t *adsr = &envelopes[envelope_index];  // Get the corresponding ADSR envelope
+
+
+        switch (number) {
+        case ATTACK_CC: // Brightness controls Attack
+//        	oled("attack");
+        	cc_values[envelope_index].attack_value = value;
+            adsr->attack_rate = attack_rate_lookup[value];
+//            oled2("A: %d", value);
             break;
 
-        case 71: // Resonance controls Decay
-            adsr->decay_rate = (value / 127.0f) * 0.01f;   // Scale 0-127 to 0.001 - 0.01
+        case DECAY_CC: // Resonance controls Decay
+        	cc_values[envelope_index].decay_value = value;
+            adsr->decay_rate = attack_rate_lookup[value];   // Scale 0-127 to 0.001 - 0.01
             break;
 
-        case 73: // Release Time controls Release
-            adsr->release_rate = (value / 127.0f) * 0.01f; // Scale 0-127 to 0.001 - 0.01
+        case RELEASE_CC: // Release Time controls Release
+        	cc_values[envelope_index].release_value = value;
+            adsr->release_rate = attack_rate_lookup[value]; // Scale 0-127 to 0.001 - 0.01
             break;
 
-        case 72: // Decay Time controls Sustain
-            adsr->sustain_level = value / 127.0f;          // Scale 0-127 to 0.0 - 1.0
+        case SUSTAIN_CC: // Decay Time controls Sustain
+        	cc_values[envelope_index].sustain_value = value;
+            adsr->sustain_level = value / 127.0f;          // 2ia manau nereik float, pakaks ma=esnies reik6mies
+            break;
+
+        case AMPLITUDE_CC:
+            cc_values[envelope_index].amplitude_value = value;  // Store amplitude value
+            adsr->amplitude = value / 127.0f;  // Scale amplitude from 0-127 to 0.0-1.0
             break;
 
         default:
             // Handle other CC messages or ignore
             break;
     }
-}
+//        update_adsr_flag = false;
+    }
+
 }
 
 //void Handle_CC16(byte channel, byte number, byte value) {
