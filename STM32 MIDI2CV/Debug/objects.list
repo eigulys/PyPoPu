@@ -3,6 +3,7 @@
 "./Core/Src/Syhtn_stuff.o"
 "./Core/Src/adsr.o"
 "./Core/Src/dac.o"
+"./Core/Src/lfo.o"
 "./Core/Src/lookup_t.o"
 "./Core/Src/main.o"
 "./Core/Src/mcp4728_mod.o"

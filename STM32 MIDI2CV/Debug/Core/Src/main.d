@@ -37,7 +37,7 @@ Core/Src/main.o: ../Core/Src/main.cpp ../Core/Inc/main.h \
  ../Core/Inc/MIDI.h ../Core/Inc/mcp4728_mod.h ../Core/Inc/ssd1306.h \
  ../Core/Inc/ssd1306_conf.h ../Core/Inc/ssd1306_fonts.h \
  ../Core/Inc/ssd1306.h ../Core/Inc/adsr.h ../Core/Inc/lookup_t.h \
- ../Core/Inc/midi2freq.h
+ ../Core/Inc/midi2freq.h ../Core/Inc/lfo.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_hal.h:
 ../Core/Inc/stm32f3xx_hal_conf.h:
@@ -85,3 +85,4 @@ Core/Src/main.o: ../Core/Src/main.cpp ../Core/Inc/main.h \
 ../Core/Inc/adsr.h:
 ../Core/Inc/lookup_t.h:
 ../Core/Inc/midi2freq.h:
+../Core/Inc/lfo.h:

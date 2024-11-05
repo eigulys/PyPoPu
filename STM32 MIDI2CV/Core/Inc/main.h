@@ -68,6 +68,10 @@ void Error_Handler(void);
 #define gate2_GPIO_Port GPIOB
 #define gate3_Pin GPIO_PIN_2
 #define gate3_GPIO_Port GPIOB
+#define gate4_Pin GPIO_PIN_8
+#define gate4_GPIO_Port GPIOE
+#define All_trig_Pin GPIO_PIN_9
+#define All_trig_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 

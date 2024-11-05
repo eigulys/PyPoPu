@@ -1,22 +1,77 @@
 // adsr.c
 
 #include "adsr.h"
-//#include "MIDI.h"
+#include <stdbool.h>
+#include <lookup_t.h>
+#include <stdio.h>
 
 // Initializes an individual ADSR instance
-void ADSR_Init(ADSR_t *adsr) {
+//void ADSR_Init(ADSR_t *adsr) {
 //    adsr->state = IDLE;
-//    adsr->envelope_value = 0.0f;
-//    adsr->attack_rate = 0.01f;  // Default rates, can be modified by MIDI or control signals
-//    adsr->decay_rate = 0.001f;
-//    adsr->sustain_level = 0.8f;
-//    adsr->release_rate = 0.001f;
+//    adsr->envelope_value = attack_rate_lookup[64];
+//    adsr->attack_rate = attack_rate_lookup[64];  // Default rates, can be modified by MIDI or control signals
+//    adsr->decay_rate = attack_rate_lookup[64];
+//    adsr->sustain_level = 0.6;
+//    adsr->release_rate = attack_rate_lookup[64];
 //    adsr->gate_signal = 0;
-//    adsr->amplitude = 1.0f;      // Default amplitude is 1.0 (full volume)
+//    adsr->amplitude = 1;      // Default amplitude is 1.0 (full volume)
+//}
+//extern float lookup_t[128];
+
+void ADSR_Init(ADSR_t *adsr, int num_envelopes) {
+    for (int i = 0; i < num_envelopes; i++) {
+        adsr[i].attack_rate = attack_rate_lookup[64];
+        adsr[i].decay_rate = attack_rate_lookup[64];
+        adsr[i].sustain_level = 0.5f;
+        adsr[i].release_rate = attack_rate_lookup[64];
+        adsr[i].amplitude = 1.0f;
+    }
 }
+
+//void ADSR_UpdateEnvelope_old(ADSR_t *adsr) {
+//
+//    switch (adsr->state) {
+//    for (int i = 0; i < NUM_ENVELOPES; i++) {
+//    	switch (envelopes[i].state) {
+//        case ATTACK:
+//            adsr->envelope_value += adsr->attack_rate;
+//            if (adsr->envelope_value >= 1.0f) {
+//                adsr->envelope_value = 1.0f;
+//                adsr->state = DECAY;
+//            }
+//            break;
+//
+//        case DECAY:
+//            adsr->envelope_value -= adsr->decay_rate;
+//            if (adsr->envelope_value <= adsr->sustain_level) {
+//                adsr->envelope_value = adsr->sustain_level;
+//                adsr->state = SUSTAIN;
+//            }
+//            break;
+//
+//        case SUSTAIN:
+//            if (!adsr->gate_signal) {
+//                adsr->state = RELEASE;
+//            }
+//            break;
+//
+//        case RELEASE:
+//            adsr->envelope_value -= adsr->release_rate;
+//            if (adsr->envelope_value <= 0.0f) {
+//                adsr->envelope_value = 0.0f;
+//                adsr->state = IDLE;
+//            }
+//            break;
+//
+//        case IDLE:
+//            // Do nothing
+//            break;
+//    }
+//}}}
 
 // Updates the envelope for a specific ADSR instance
 void ADSR_UpdateEnvelope(ADSR_t *adsr) {
+
     switch (adsr->state) {
         case ATTACK:
             adsr->envelope_value += adsr->attack_rate;
@@ -63,6 +118,16 @@ void ADSR_SetGateSignal(ADSR_t *adsr, uint8_t gate_signal_value) {
         adsr->state = RELEASE;
     }
 }
+
+//void ADSR_SetGateSignal(ADSR_t *adsr, bool gate) {
+//    if (gate) {
+//        adsr->state = ATTACK;
+//    } else {
+//        if (adsr->state != IDLE) {
+//            adsr->state = RELEASE;
+//        }
+//    }
+//}
 
 // Handles MIDI CC messages for controlling individual ADSR instances
 

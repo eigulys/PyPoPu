@@ -1,20 +1,8 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+TIM7 - kontroliuoja ADSR
+TIM7 -
+**/
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -31,20 +19,23 @@
 #include <adsr.h>
 #include "lookup_t.h"
 #include "midi2freq.h"
+#include "lfo.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 #define X 0.25 // santykis
-#define NUM_ENVELOPES 2
+#define NUM_ENVELOPES 4
 
 // Define the MIDI CC numbers for the ADSR parameters
 #define ATTACK_CC 74     // Brightness or Attack CC number
 #define DECAY_CC 71      // Resonance or Decay CC number
-#define SUSTAIN_CC 72    // Decay Time or Sustain level CC number
-#define RELEASE_CC 73    // Release Time CC number
-#define AMPLITUDE_CC 7   // Volume or Amplitude CC number
+#define SUSTAIN_CC 22    // Decay Time or Sustain level CC number
+#define RELEASE_CC 75    // Release Time CC number
+#define AMPLITUDE_CC 12   // Volume or Amplitude CC number
+#define MAX_MIDI_CHANNELS 2
+//#define DMA_RX_BUFFER_SIZE 256
 
 //#define SystemCoreClock 72000000
 
@@ -73,22 +64,54 @@ SPI_HandleTypeDef hspi2;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim13;
+TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
+
+//uint8_t dma_rx_buffer[DMA_RX_BUFFER_SIZE];
+//uint8_t dma_rx_data[DMA_RX_BUFFER_SIZE];
+//volatile uint16_t dma_rx_index = 0;
+// volatile bool update_adsr_flag = false;
+
+/* Midi kintamieji */
+/* 4 balsai */
 bool first_note_active = false;
 bool second_note_active = false;
-volatile bool update_adsr_flag = false;
-
+bool third_note_active = false;
+bool fourth_note_active = false;
 uint32_t pitch1_CV;
 uint32_t pitch2_CV;
+uint32_t pitch3_CV;
+uint32_t pitch4_CV;
 uint8_t first_note;
+uint8_t second_note;
+uint8_t third_note;
+uint8_t fourth_note;
+/*  */
+
+uint32_t ramp_counter = 0;
+uint32_t count = 0;
+uint16_t minFrequency = 100;   // Minimum frequency in Hz
+uint16_t maxFrequency = 1000;  // Maximum frequency in Hz
+uint32_t new_period = 0;
+uint32_t dac_value;
 
 extern ADSR_t adsr;
 float env1;
 ADSR_t envelopes[NUM_ENVELOPES]; // Array to hold the ADSR envelopes
+
+
+
+
+
+// midi natos pagal kanalus kintamieji
+bool note_active[MAX_MIDI_CHANNELS] = {false};
+uint32_t pitch_CV[MAX_MIDI_CHANNELS];
+uint32_t velo_CV[MAX_MIDI_CHANNELS];
+uint8_t current_note[MAX_MIDI_CHANNELS];
 
 
 /* USER CODE END PV */
@@ -105,6 +128,7 @@ static void MX_I2C2_Init(void);
 static void MX_TIM7_Init(void);
 static void MX_TIM13_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM14_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -121,16 +145,16 @@ int _write(int file, char *ptr, int len)
 	 return len;
  }
 
-typedef struct {
-    byte attack_value;
-    byte decay_value;
-    byte sustain_value;
-    byte release_value;
-    byte amplitude_value;
-} ADSR_CC_Values;
+//typedef struct {
+//    byte attack_value;
+//    byte decay_value;
+//    byte sustain_value;
+//    byte release_value;
+//    byte amplitude_value;
+//} ADSR_CC_Values;
 
 // Array to store the last known MIDI CC values for each envelope
-ADSR_CC_Values cc_values[NUM_ENVELOPES];
+//ADSR_CC_Values cc_values[NUM_ENVELOPES];
 
 /* Initialize MidiInterface object */
 MidiInterface Port;
@@ -141,29 +165,190 @@ void Handle_CC(byte channel, byte number, byte value);
 void Handle_CC16(byte channel, byte number, byte value);
 void ADSR_HandleCC(byte channel, byte number, byte value);
 
+// Add new variables for third and fourth notes
 
-//	HAL_TIM_Base_Start_IT(&htim16);
-    // Additional configuration code
 
-void setupPWM(uint32_t frequency) {
-    uint32_t period = (SystemCoreClock / frequency) - 1;
+void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
+    uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4095));  // Calculate pitch CV from MIDI note
+    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 4095);
+    ChannelConfig config;
+    ChannelConfig_2 config2;
 
-    // Update the timer period
-    __HAL_TIM_SET_AUTORELOAD(&htim2, period);
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, period / 2); // 50% duty cycle
-    __HAL_TIM_SET_COUNTER(&htim2, 0); // Reset counter
+    if (!first_note_active) {
+        pitch1_CV = pitch_CV;
 
-    // Start PWM if not already started
-    if (HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1) != HAL_OK) {
-        // PWM start error handling
+        ADSR_SetGateSignal(&envelopes[0], 1);
+        config.val[0] = pitch1_CV; // 12-bit DAC value for channel A
+        config2.val[0] = velo_CV;  // 12-bit DAC value for channel B
+        DACx60SW(&hi2c1, config, 0);
+        DACx61SW(&hi2c1, config2, 0);
+
+        HAL_GPIO_WritePin(GPIOB, gate1_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
+        first_note_active = true;  // First note is now active
+        first_note = note;  // Store the note value
+    } else if (!second_note_active) {
+        pitch2_CV = pitch_CV;
+
+        ADSR_SetGateSignal(&envelopes[1], 1);
+        config.val[1] = pitch2_CV; // 12-bit DAC value for channel A
+        config2.val[1] = velo_CV;  // 12-bit DAC value for channel B
+        DACx60SW(&hi2c1, config, 1);
+        DACx61SW(&hi2c1, config2, 1);
+
+        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_SET);  // Indicate second note is on via gate2_Pin
+        second_note_active = true;  // Second note is now active
+        second_note = note;  // Store the note value
+    } else if (!third_note_active) {
+        pitch3_CV = pitch_CV;
+
+        ADSR_SetGateSignal(&envelopes[2], 1);
+        config.val[2] = pitch3_CV; // 12-bit DAC value for channel A
+        config2.val[2] = velo_CV;  // 12-bit DAC value for channel B
+        DACx60SW(&hi2c1, config, 2);
+        DACx61SW(&hi2c1, config2, 2);
+
+        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate third note is on via gate1_Pin
+        third_note_active = true;  // Third note is now active
+        third_note = note;  // Store the note value
+    } else if (!fourth_note_active) {
+        pitch4_CV = pitch_CV;
+
+        ADSR_SetGateSignal(&envelopes[3], 1);
+        config.val[3] = pitch4_CV; // 12-bit DAC value for channel A
+        config2.val[3] = velo_CV;  // 12-bit DAC value for channel B
+        DACx60SW(&hi2c1, config, 3);
+        DACx61SW(&hi2c1, config2, 3);
+
+        HAL_GPIO_WritePin(GPIOE, gate4_Pin, GPIO_PIN_SET);  // Indicate fourth note is on via gate4_Pin
+        fourth_note_active = true;  // Fourth note is now active
+        fourth_note = note;  // Store the note value
     }
 }
 
+void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+    if (first_note_active && note == first_note) {
+        ADSR_SetGateSignal(&envelopes[0], 0);
+
+        HAL_GPIO_WritePin(GPIOB, gate1_Pin, GPIO_PIN_RESET);  // PB2 Turn off gate for first note
+        first_note_active = false;  // First note is no longer active
+    } else if (second_note_active && note == second_note) {
+        ADSR_SetGateSignal(&envelopes[1], 0);
+        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_RESET);  // Turn off gate for second note
+        second_note_active = false;  // Second note is no longer active
+    } else if (third_note_active && note == third_note) {
+        ADSR_SetGateSignal(&envelopes[2], 0);
+        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // Turn off gate for third note
+        third_note_active = false;  // Third note is no longer active
+    } else if (fourth_note_active && note == fourth_note) {
+        ADSR_SetGateSignal(&envelopes[3], 0);
+        HAL_GPIO_WritePin(GPIOE, gate4_Pin, GPIO_PIN_RESET);  // Turn off gate for fourth note
+        fourth_note_active = false;  // Fourth note is no longer active
+    }
+}
+
+
+//void setupPWM(uint32_t frequency) {
+//    uint32_t period = (SystemCoreClock / frequency) - 1;
+//
+//    // Update the timer period
+//    __HAL_TIM_SET_AUTORELOAD(&htim2, period);
+//    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, period / 2); // 50% duty cycle
+//    __HAL_TIM_SET_COUNTER(&htim2, 0); // Reset counter
+//
+//    // Start PWM if not already started
+//    if (HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1) != HAL_OK) {
+//        // PWM start error handling
+//    }
+//}
 // Convert envelope value (0.0 - 1.0) to DAC value (0 - 4095)
 uint32_t envelope_to_dac_value(float envelope_value) {
     return (uint32_t)(envelope_value * 4095.0f);
 }
+    // Additional configuration code
+//void TIM8_UP_TIM13_IRQHandler(void)
+//{
+//  HAL_TIM_IRQHandler(&htim13);
+//}
+//void Update_TIM13_Frequency(uint8_t midi_value) {
+//	uint32_t frequency = lfo_lookup[midi_value];
+//	new_period = (72000000 / frequency) - 1; // Example calculation
+//    __HAL_TIM_SET_AUTORELOAD(&htim13, new_period);
+////    __HAL_TIM_SET_COMPARE(&htim13, new_period / 2); // 50% duty cycle
+////    __HAL_TIM_SET_COUNTER(&htim13, 0); // Reset counter
+//    if (HAL_TIM_PWM_Start(&htim13, TIM_CHANNEL_1) != HAL_OK) {
+//        // PWM start error handling
+//    }
+//}
 
+//void HandleCC(byte channel, byte number, byte value) {
+//    if (number == 13) {
+//    			uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+//    			HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+////        midi_cc40_value = value;
+//        Update_TIM13_Frequency(value);
+//    }
+//    // Handle other CC messages
+//}
+
+//void ADSR_HandleCC(byte channel, byte number, byte value) {
+////    if (channel < NUM_ENVELOPES && update_adsr_flag) {
+//
+//	int envelope_index = channel - 1;
+////    	if (channel < NUM_ENVELOPES) {
+//    	    if (envelope_index >= 0 && envelope_index < NUM_ENVELOPES) {
+//    	        ADSR_t *adsr = &envelopes[envelope_index];  // Get the corresponding ADSR envelope
+//
+//
+//        switch (number) {
+//        case ATTACK_CC: // Brightness controls Attack
+////        	oled("attack");
+////        	cc_values[envelope_index].attack_value = value;
+////            adsr->attack_rate = attack_rate_lookup[value];
+//            adsr->attack_rate = attack_rate_lookup[64];
+//
+////            oled2("A: %d", value);
+//            break;
+//
+//        case DECAY_CC: // Resonance controls Decay
+////        	cc_values[envelope_index].decay_value = value;
+////            adsr->decay_rate = attack_rate_lookup[value];   // Scale 0-127 to 0.001 - 0.01
+//        	adsr->decay_rate = attack_rate_lookup[64];
+//            break;
+//
+//        case RELEASE_CC: // Release Time controls Release
+////        	cc_values[envelope_index].release_value = value;
+////            adsr->release_rate = attack_rate_lookup[value]; // Scale 0-127 to 0.001 - 0.01
+//        	adsr->release_rate = attack_rate_lookup[64];
+//            break;
+//
+//        case SUSTAIN_CC: // Decay Time controls Sustain
+////        	cc_values[envelope_index].sustain_value = value;
+////            adsr->sustain_level = value / 127.0f;          // 2ia manau nereik float, pakaks ma=esnies reik6mies
+//        	adsr->sustain_level = 64;
+//            break;
+//
+//        case AMPLITUDE_CC:
+////            cc_values[envelope_index].amplitude_value = value;  // Store amplitude value
+////            adsr->amplitude = value / 127.0f;  // Scale amplitude from 0-127 to 0.0-1.0
+//        	adsr->amplitude = 127;
+//            break;
+//
+////        case 13:  // Handle MIDI CC13 for DAC output
+////  //      	    			uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
+////        	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, (uint32_t)((value / 127.0) * 4095));
+//// //           Update_TIM13_Frequency(value);
+////            break;
+//
+//
+//        default:
+//            // Handle other CC messages or ignore
+//
+//            break;
+//    }
+////        update_adsr_flag = false;
+//    }
+//
+//}
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 //    if (htim->Instance == TIM13) {
@@ -172,29 +357,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 //    }
 
     if (htim->Instance == TIM7) {
-        // Update each ADSR envelope
-        for (int i = 0; i < NUM_ENVELOPES; i++) {
-            ADSR_UpdateEnvelope(&envelopes[i]);
-
-            // Output each envelope value to a DAC channel
-
-            uint32_t dac_value = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[i]));
-            if (i == 0) {
-                // Output to DAC Channel 1
-                HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value);
-            } else if (i == 1) {
-                // Output to DAC Channel 2 (if available)
-                HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value);
-            }
-        }
+/*  ADSR kreivių formavimas naudojant laikmatį.  */
+        // Update the first envelope
+        ADSR_UpdateEnvelope(&envelopes[0]);
+        uint32_t dac_value1 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[0]));
+        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value1);
+        // Update the second envelope
+        ADSR_UpdateEnvelope(&envelopes[1]);
+        uint32_t dac_value2 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[1]));
+        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value2);
+        //
+        ADSR_UpdateEnvelope(&envelopes[2]);
+        uint32_t dac_value3 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[2]));
+        //
+        ADSR_UpdateEnvelope(&envelopes[3]);
+        uint32_t dac_value4 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[3]));
     }
-    if (htim->Instance == TIM2) {
-        // Handle TIM2 period elapsed interrupt
-    }
+
+//    if (htim->Instance == TIM13) {
+//        ramp_counter++;
+//        if (ramp_counter > 4095) {
+//            ramp_counter = 0;
+//        }
+//        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, ramp_counter);
+//    }
 }
-
-
-
 
 /* USER CODE END 0 */
 
@@ -236,6 +423,7 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM13_Init();
   MX_TIM2_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	Port.begin(1, &huart1, &huart1);
 
@@ -246,7 +434,7 @@ int main(void)
 	Port.setHandleNoteOff(Handle_NoteOff);
 //	Port.setHandleControlChange(Handle_CC);
 //	Port.setHandleControlChange(Handle_CC16);
-	Port.setHandleControlChange(ADSR_HandleCC);
+//	Port.setHandleControlChange(ADSR_HandleCC);
 
 //	 printf("Great Succes!\n\r");
 
@@ -265,27 +453,42 @@ int main(void)
     ssd1306_UpdateScreen();
 
     HAL_TIM_Base_Start_IT(&htim7);
-    HAL_TIM_Base_Start_IT(&htim13);
-    HAL_TIM_Base_Start(&htim2);
+    //HAL_TIM_Base_Start_IT(&htim13);
+    //HAL_TIM_Base_Start(&htim2);
+    //HAL_TIM_Base_Start(&htim14);
+    ADSR_Init(envelopes, NUM_ENVELOPES);
 
     // Initialize each ADSR envelope and set the default MIDI values
-    for (int i = 0; i < NUM_ENVELOPES; i++) {
-        ADSR_Init(&envelopes[i]);
-
-        // Initialize CC values to some default values (you can use defaults or assume MIDI will update)
-        cc_values[i].attack_value = 64;  // Default to a middle value for attack, you can choose another default
-        cc_values[i].decay_value = 64;
-        cc_values[i].sustain_value = 64;
-        cc_values[i].release_value = 64;
-        cc_values[i].amplitude_value = 127;  // Max volume by default
-
-        // Apply the stored MIDI values to initialize ADSR settings
-        ADSR_HandleCC(i, ATTACK_CC, cc_values[i].attack_value);
-        ADSR_HandleCC(i, DECAY_CC, cc_values[i].decay_value);
-        ADSR_HandleCC(i, SUSTAIN_CC, cc_values[i].sustain_value);
-        ADSR_HandleCC(i, RELEASE_CC, cc_values[i].release_value);
-        ADSR_HandleCC(i, AMPLITUDE_CC, cc_values[i].amplitude_value);
-    }
+//    for (int i = 0; i < NUM_ENVELOPES; i++) {
+//        ADSR_Init(&envelopes[i]);
+//
+//        // Initialize CC values to some default values (you can use defaults or assume MIDI will update)
+//        cc_values[i].attack_value = 64;  // Default to a middle value for attack, you can choose another default
+//        cc_values[i].decay_value = 64;
+//        cc_values[i].sustain_value = 64;
+//        cc_values[i].release_value = 64;
+//        cc_values[i].amplitude_value = 127;  // Max volume by default
+//
+//        // Apply the stored MIDI values to initialize ADSR settings
+//        ADSR_HandleCC(i, ATTACK_CC, cc_values[i].attack_value);
+//        ADSR_HandleCC(i, DECAY_CC, cc_values[i].decay_value);
+//        ADSR_HandleCC(i, SUSTAIN_CC, cc_values[i].sustain_value);
+//        ADSR_HandleCC(i, RELEASE_CC, cc_values[i].release_value);
+//        ADSR_HandleCC(i, AMPLITUDE_CC, cc_values[i].amplitude_value);
+//    }
+//    // Temporarily set specific parameters for the second envelope for testing
+//    cc_values[1].attack_value = 80;  // Example value for attack
+//    cc_values[1].decay_value = 50;   // Example value for decay
+//    cc_values[1].sustain_value = 90; // Example value for sustain
+//    cc_values[1].release_value = 70; // Example value for release
+//    cc_values[1].amplitude_value = 127; // Max volume
+//
+//    // Apply the specific parameters to the second envelope
+//    ADSR_HandleCC(1, ATTACK_CC, cc_values[1].attack_value);
+//    ADSR_HandleCC(1, DECAY_CC, cc_values[1].decay_value);
+//    ADSR_HandleCC(1, SUSTAIN_CC, cc_values[1].sustain_value);
+//    ADSR_HandleCC(1, RELEASE_CC, cc_values[1].release_value);
+//    ADSR_HandleCC(1, AMPLITUDE_CC, cc_values[1].amplitude_value);
 
 
   /* USER CODE END 2 */
@@ -687,9 +890,9 @@ static void MX_TIM13_Init(void)
 
   /* USER CODE END TIM13_Init 1 */
   htim13.Instance = TIM13;
-  htim13.Init.Prescaler = 7199;
+  htim13.Init.Prescaler = 0;
   htim13.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim13.Init.Period = 100;
+  htim13.Init.Period = 0;
   htim13.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim13) != HAL_OK)
@@ -699,6 +902,37 @@ static void MX_TIM13_Init(void)
   /* USER CODE BEGIN TIM13_Init 2 */
 
   /* USER CODE END TIM13_Init 2 */
+
+}
+
+/**
+  * @brief TIM14 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM14_Init(void)
+{
+
+  /* USER CODE BEGIN TIM14_Init 0 */
+
+  /* USER CODE END TIM14_Init 0 */
+
+  /* USER CODE BEGIN TIM14_Init 1 */
+
+  /* USER CODE END TIM14_Init 1 */
+  htim14.Instance = TIM14;
+  htim14.Init.Prescaler = 0;
+  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim14.Init.Period = 0;
+  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM14_Init 2 */
+
+  /* USER CODE END TIM14_Init 2 */
 
 }
 
@@ -753,6 +987,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -760,6 +995,9 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, gate1_Pin|gate2_Pin|gate3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, gate4_Pin|All_trig_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -775,6 +1013,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : gate4_Pin All_trig_Pin */
+  GPIO_InitStruct.Pin = gate4_Pin|All_trig_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -784,88 +1029,112 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	__NOP();
 }
 
-
-void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4096));  // Calculate pitch CV from MIDI note
-    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 65535);
-    ChannelConfig config;
-//    oled("Note On \n");
-//    ADSR_SetGateSignal(&envelopes[0], 1);
-//    oled("SET times \n");
-
-//    oled("ADSR On \n");
-//    env1 = ADSR_computeSample(&adsr);
-//    oled("ADSR compute\n");
-
-
-
-
-    // If no notes are currently active, send the first note to DAC_CHANNEL_1
-    if (!first_note_active) {
-        pitch1_CV = pitch_CV;
-
-
-            // Calculate frequency from MIDI note
-        float frequency = midi2freq[note];
-        setupPWM((uint32_t)frequency);
-
-
-
-        ADSR_SetGateSignal(&envelopes[0], 1);
-//        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
-//        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, velo_CV);
+//void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
+////    if (channel >= MAX_MIDI_CHANNELS) return; // Ignore channels beyond the max limit
 //
-//          config.val[0] = pitch1_CV;  // 12-bit DAC value for channel A
+//    uint32_t new_pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4095));  // Calculate pitch CV from MIDI note
+//    uint32_t new_velo_CV = (uint32_t)((velocity / 127.0) * 4095);
+//    ChannelConfig config;
+////    ChannelConfig_2 config2;
+//
+//    if (!note_active[channel] || note < current_note[channel]) {
+//        pitch_CV[channel] = new_pitch_CV;
+//        velo_CV[channel] = new_velo_CV;
+//        current_note[channel] = note;
+//
+//        // Calculate frequency from MIDI note
+////        float frequency = midi2freq[note];
+////        setupPWM((uint32_t)frequency);
+//
+//        ADSR_SetGateSignal(&envelopes[channel-1], 1);
+//        ADSR_SetGateSignal(&envelopes[1], 1);
+//        config.val[0] = pitch_CV[1];
+//        config.val[1] = pitch_CV[2];// 12-bit DAC value for pitch CV
+//        DACx60FW(&hi2c1, config);
+//
+////        config2.val[channel] = velo_CV[channel];  // 12-bit DAC value for velocity CV
+////        DACx61FW(&hi2c1, config2);
+//
+////        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate note is on via gate3_Pin
+//        note_active[channel] = true;  // Note is now active
+//    }
+//}
+//
+//void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+////    if (channel >= MAX_MIDI_CHANNELS) return; // Ignore channels beyond the max limit
+//
+//    if (note_active[channel] && note == current_note[channel]) {
+//        ADSR_SetGateSignal(&envelopes[channel-1], 0);
+//        ADSR_SetGateSignal(&envelopes[1], 0);
+//
+////        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // Turn off gate for note
+//        note_active[channel] = false;  // Note is no longer active
+//    }
+//}
+//void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
+//    uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4095));  // Calculate pitch CV from MIDI note
+//    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 4095);
+//    ChannelConfig config;
+//    ChannelConfig_2 config2;
+//
+//    if (!first_note_active) {
+//        pitch1_CV = pitch_CV;
+//
+//
+//            // Calculate frequency from MIDI note
+////        float frequency = midi2freq[note];
+////        setupPWM((uint32_t)frequency);
+//
+//        ADSR_SetGateSignal(&envelopes[0], 1);
+//          config.val[0] = pitch1_CV;
+//          config2.val[0] = pitch1_CV; // 12-bit DAC value for channel A
 //          config.val[1] = velo_CV;  // 12-bit DAC value for channel B
 //    	  DACx60FW(&hi2c1, config);
+//    	  DACx61FW(&hi2c1, config2);
+//
+//        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
+//        first_note_active = true;  // First note is now active
+//        first_note = note;  // Store the note value
+//    }
+////     If the first note is active and second note is not yet playing, output second note on DAC_CHANNEL_2
+//    else if (!second_note_active) {
+//    	ADSR_SetGateSignal(&envelopes[1], 1);
+////        pitch2_CV = pitch_CV;
+////        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch2_CV);
+//        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_SET);  // Indicate second note is on via gate2_Pin
+//        second_note_active = true;  // Second note is now active
+//        second_note = note;  // Store the note value
+//    }
+//	}
+//
+//void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+//   // If the first note is off
+//
+//    if (first_note_active && note == first_note)  {
+//    	ADSR_SetGateSignal(&envelopes[0], 0);
+//
+//        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // PB2 Turn off gate for first note
+//        first_note_active = false;  // First note is no longer active
+//        // Note off, stop PWM
+////        HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
+//    }
+////     If the second note is off
+//    else if (second_note_active && note == second_note) {
+//    	ADSR_SetGateSignal(&envelopes[1], 0);
+//        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_RESET);  // Turn off gate for second note
+//        second_note_active = false;  // Second note is no longer active
+//
+//    }
+//}
 
-//        if (dac.ready()) {
-//         dac.Write((uint16_t)pitch1_CV, 30000);
-        // Also output the same value to DAC_CHANNEL_2 as default
-//        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch1_CV);
-        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_SET);  // Indicate first note is on via gate3_Pin
-        first_note_active = true;  // First note is now active
-    }
-    // If the first note is active and second note is not yet playing, output second note on DAC_CHANNEL_2
-    else if (!second_note_active) {
-        pitch2_CV = pitch_CV;
-//        HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, pitch2_CV);
-        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_SET);  // Indicate second note is on via gate2_Pin
-        second_note_active = true;  // Second note is now active
-    }
-	}
-
-void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
-//	ADSR_SetGateSignal(&envelopes[0], 0);
-//    env1 = ADSR_computeSample(&adsr);
-
-
-   // If the first note is off
-
-    if (first_note_active) {
-    	ADSR_SetGateSignal(&envelopes[0], 0);
-
-        HAL_GPIO_WritePin(GPIOB, gate3_Pin, GPIO_PIN_RESET);  // Turn off gate for first note
-        first_note_active = false;  // First note is no longer active
-
-        // Note off, stop PWM
-//        HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_1);
-
-    }
-    // If the second note is off
-    else if (second_note_active) {
-
-        HAL_GPIO_WritePin(GPIOB, gate2_Pin, GPIO_PIN_RESET);  // Turn off gate for second note
-        second_note_active = false;  // Second note is no longer active
-    }
-}
 
 //void Handle_CC(byte channel, byte number, byte value) {
-//	if (number == ModulationWheel){
-////		adsr->attack_rate = (value / 127.0f) * 0.01f;
-////		uint32_t modv_CV = (uint32_t)((value / 127.0) * 4095);
-//		ADSR_SetAttackRate(&envelopes[0], float(value / 127.0));
-////		HAL_DAC_SetValue(&hdac2, DAC_CHANNEL_1, DAC_ALIGN_12B_R, modv_CV);
+//	if (number == 13){
+//		setupLFO(value);
+//	}
+//}
+
+
 //
 //	}
 //}
@@ -882,50 +1151,8 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 //	}
 //}
 
-void ADSR_HandleCC(byte channel, byte number, byte value) {
- //   if (channel < NUM_ENVELOPES && update_adsr_flag) {
-	int envelope_index = channel - 1;
-//    	if (channel < NUM_ENVELOPES) {
-    	    if (envelope_index >= 0 && envelope_index < NUM_ENVELOPES) {
-    	        ADSR_t *adsr = &envelopes[envelope_index];  // Get the corresponding ADSR envelope
 
 
-        switch (number) {
-        case ATTACK_CC: // Brightness controls Attack
-//        	oled("attack");
-        	cc_values[envelope_index].attack_value = value;
-            adsr->attack_rate = attack_rate_lookup[value];
-//            oled2("A: %d", value);
-            break;
-
-        case DECAY_CC: // Resonance controls Decay
-        	cc_values[envelope_index].decay_value = value;
-            adsr->decay_rate = attack_rate_lookup[value];   // Scale 0-127 to 0.001 - 0.01
-            break;
-
-        case RELEASE_CC: // Release Time controls Release
-        	cc_values[envelope_index].release_value = value;
-            adsr->release_rate = attack_rate_lookup[value]; // Scale 0-127 to 0.001 - 0.01
-            break;
-
-        case SUSTAIN_CC: // Decay Time controls Sustain
-        	cc_values[envelope_index].sustain_value = value;
-            adsr->sustain_level = value / 127.0f;          // 2ia manau nereik float, pakaks ma=esnies reik6mies
-            break;
-
-        case AMPLITUDE_CC:
-            cc_values[envelope_index].amplitude_value = value;  // Store amplitude value
-            adsr->amplitude = value / 127.0f;  // Scale amplitude from 0-127 to 0.0-1.0
-            break;
-
-        default:
-            // Handle other CC messages or ignore
-            break;
-    }
-//        update_adsr_flag = false;
-    }
-
-}
 
 //void Handle_CC16(byte channel, byte number, byte value) {
 //	if (number == GeneralPurposeController1){					//    CC16
