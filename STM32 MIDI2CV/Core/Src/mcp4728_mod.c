@@ -86,11 +86,23 @@ HAL_StatusTypeDef mcp4728_writePwrDownSelect(I2C_HandleTypeDef *i2cHandler, uint
  * @param command General call command to send.
  * @return HAL_StatusTypeDef HAL status indicating success or failure.
  */
+//HAL_StatusTypeDef mcp4728_generalCall(I2C_HandleTypeDef *i2cHandler, uint8_t command) {
+//    // Transmit the general call command
+//    return HAL_I2C_Master_Transmit(i2cHandler, 0x00, &command, 1, HAL_MAX_DELAY);
+//}
+
 HAL_StatusTypeDef mcp4728_generalCall(I2C_HandleTypeDef *i2cHandler, uint8_t command) {
     // Transmit the general call command
-    return HAL_I2C_Master_Transmit(i2cHandler, 0x00, &command, 1, HAL_MAX_DELAY);
-}
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_DMA(i2cHandler, 0x00, &command, 1);
+    if (ret != HAL_OK) {
+        return ret;
+    }
 
+    // Wait for the DMA transfer to complete
+    while (HAL_I2C_GetState(i2cHandler) != HAL_I2C_STATE_READY) {}
+
+    return HAL_OK;
+}
 /**
  * @brief Performs a fast write operation on the MCP4728.
  *
@@ -157,10 +169,13 @@ HAL_StatusTypeDef DACx60SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, 
              (config.val[channel] >> 8); // Upper 8 bits of the 12-bit DAC value
     buf[2] = config.val[channel] & 0xFF; // Lower 8 bits of the 12-bit DAC value
 
-    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(i2cHandler, dac1, buf, sizeof(buf), HAL_MAX_DELAY);
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_DMA(i2cHandler, dac1, buf, sizeof(buf));
     if (ret != HAL_OK) {
         return ret;
     }
+
+    // Wait for the DMA transfer to complete and then send the general call command
+    while (HAL_I2C_GetState(i2cHandler) != HAL_I2C_STATE_READY) {}
 
     return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
 }
@@ -175,13 +190,32 @@ HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config
              (config_0x61.val[channel] >> 8); // Upper 8 bits of the 12-bit DAC value
     buf[2] = config_0x61.val[channel] & 0xFF; // Lower 8 bits of the 12-bit DAC value
 
-    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(i2cHandler, dac2, buf, sizeof(buf), HAL_MAX_DELAY);
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_DMA(i2cHandler, dac2, buf, sizeof(buf));
     if (ret != HAL_OK) {
         return ret;
     }
 
+    // Wait for the DMA transfer to complete and then send the general call command
+    while (HAL_I2C_GetState(i2cHandler) != HAL_I2C_STATE_READY) {}
+
     return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
 }
+
+//HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config_0x61, uint8_t channel) {
+//    uint8_t buf[3];
+//    buf[0] = MCP4728_SINGLE_WRITE | (channel << 1); // Command and channel
+//    buf[1] = ((config_0x61.vref & (1 << channel)) ? 0x80 : 0) | // VREF bit (7th bit)
+//             ((config_0x61.gain & (1 << channel)) ? 0x10 : 0) | // Gain bit (4th bit)
+//             (config_0x61.val[channel] >> 8); // Upper 8 bits of the 12-bit DAC value
+//    buf[2] = config_0x61.val[channel] & 0xFF; // Lower 8 bits of the 12-bit DAC value
+//
+//    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(i2cHandler, dac2, buf, sizeof(buf), HAL_MAX_DELAY);
+//    if (ret != HAL_OK) {
+//        return ret;
+//    }
+//
+//    return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
+//}
 
 /**
  * @brief Performs a multi-write operation on the MCP4728.
