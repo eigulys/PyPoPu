@@ -1,0 +1,8 @@
+../Core/Src/adsr.c:21:6:ADSR_Init	2
+../Core/Src/adsr.c:73:6:ADSR_UpdateEnvelope	10
+../Core/Src/adsr.c:113:6:ADSR_SetGateSignal	2
+../Core/Src/adsr.c:144:6:ADSR_SetDecayRate	2
+../Core/Src/adsr.c:152:6:ADSR_SetSustainLevel	3
+../Core/Src/adsr.c:162:6:ADSR_SetReleaseRate	2
+../Core/Src/adsr.c:171:6:ADSR_SetAmplitude	3
+../Core/Src/adsr.c:181:7:ADSR_GetEnvelopeValue	1

@@ -1,0 +1,5 @@
+../Core/Src/MidiHandlers.cpp:28:6:void Handle_Clock()	8	static
+../Core/Src/MidiHandlers.cpp:36:6:void Handle_Start()	4	static
+../Core/Src/MidiHandlers.cpp:41:6:void Handle_Stop()	4	static
+../Core/Src/MidiHandlers.cpp:50:6:void Handle_NoteOn(uint8_t, uint8_t, uint8_t)	56	static
+../Core/Src/MidiHandlers.cpp:109:6:void Handle_NoteOff(uint8_t, uint8_t, uint8_t)	16	static

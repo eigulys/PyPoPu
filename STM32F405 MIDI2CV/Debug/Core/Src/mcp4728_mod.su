@@ -1,0 +1,11 @@
+../Core/Src/mcp4728_mod.c:11:6:dac_init	16	static
+../Core/Src/mcp4728_mod.c:39:19:mcp4728_vrefSelect	40	static
+../Core/Src/mcp4728_mod.c:55:19:mcp4728_gainSelect	40	static
+../Core/Src/mcp4728_mod.c:71:19:mcp4728_writePwrDownSelect	32	static
+../Core/Src/mcp4728_mod.c:94:19:mcp4728_generalCall	24	static
+../Core/Src/mcp4728_mod.c:118:19:DACx60FW	40	static
+../Core/Src/mcp4728_mod.c:138:19:DACx61FW	40	static
+../Core/Src/mcp4728_mod.c:168:19:DACx60SW	32	static
+../Core/Src/mcp4728_mod.c:189:19:DACx61SW	32	static
+../Core/Src/mcp4728_mod.c:236:19:mcp4728_multiWrite	40	static
+../Core/Src/mcp4728_mod.c:270:19:mcp4728_sequentialWrite	64	dynamic
