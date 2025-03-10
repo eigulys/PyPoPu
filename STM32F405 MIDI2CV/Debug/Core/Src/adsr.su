@@ -1,8 +1,9 @@
-../Core/Src/adsr.c:21:6:ADSR_Init	24	static
-../Core/Src/adsr.c:73:6:ADSR_UpdateEnvelope	16	static
-../Core/Src/adsr.c:113:6:ADSR_SetGateSignal	16	static
-../Core/Src/adsr.c:144:6:ADSR_SetDecayRate	16	static
-../Core/Src/adsr.c:152:6:ADSR_SetSustainLevel	16	static
-../Core/Src/adsr.c:162:6:ADSR_SetReleaseRate	16	static
-../Core/Src/adsr.c:171:6:ADSR_SetAmplitude	16	static
-../Core/Src/adsr.c:181:7:ADSR_GetEnvelopeValue	16	static
+../Core/Src/adsr.c:24:6:ADSR_Init	24	static
+../Core/Src/adsr.c:35:6:ADSR_UpdateParametersWithEncoders	24	static
+../Core/Src/adsr.c:57:6:ADSR_SetAttackRate	16	static
+../Core/Src/adsr.c:71:6:ADSR_SetDecayRate	16	static
+../Core/Src/adsr.c:80:6:ADSR_SetSustainLevel	16	static
+../Core/Src/adsr.c:90:6:ADSR_SetReleaseRate	16	static
+../Core/Src/adsr.c:140:6:ADSR_UpdateEnvelope	16	static
+../Core/Src/adsr.c:180:6:ADSR_SetGateSignal	16	static
+../Core/Src/adsr.c:248:7:ADSR_GetEnvelopeValue	16	static

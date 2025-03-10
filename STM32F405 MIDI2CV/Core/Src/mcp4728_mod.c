@@ -133,6 +133,22 @@ HAL_StatusTypeDef DACx60FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config) 
     return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
 }
 
+HAL_StatusTypeDef DACx60FW_b(I2C_HandleTypeDef *i2cHandler, ChannelConfig config) {
+    uint8_t buf[8]; // Buffer to hold the data for 4 channels, 2 bytes each
+
+    for (uint8_t i = 0; i < 4; i++) {
+        buf[2 * i] = (config.val[i] >> 8); // Upper 8 bits of DAC value
+        buf[2 * i + 1] = config.val[i] & 0xFF; // Lower 8 bits of DAC value
+    }
+
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(i2cHandler, dac1, buf, sizeof(buf), HAL_MAX_DELAY);
+    if (ret != HAL_OK) {
+        return ret;
+    }
+
+    return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
+}
+
 
 
 HAL_StatusTypeDef DACx61FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config_0x61) {
@@ -245,7 +261,7 @@ HAL_StatusTypeDef mcp4728_multiWrite(I2C_HandleTypeDef *i2cHandler, ChannelConfi
         buf[buf_index++] = config.val[i] & 0xFF; // Lower 8 bits of the 12-bit DAC value
     }
 
-    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_DMA(i2cHandler, dac2, buf, buf_index);
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit_DMA(i2cHandler, dac1, buf, buf_index);
     if (ret != HAL_OK) {
         return ret;
     }

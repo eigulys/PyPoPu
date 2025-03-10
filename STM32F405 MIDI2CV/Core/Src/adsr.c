@@ -5,6 +5,9 @@
 #include <lookup_t.h>
 #include <stdio.h>
 
+extern int16_t ROT1;
+extern int16_t ROT2;
+
 // Initializes an individual ADSR instance
 //void ADSR_Init(ADSR_t *adsr) {
 //    adsr->state = IDLE;
@@ -20,6 +23,7 @@
 
 void ADSR_Init(ADSR_t *adsr, int num_envelopes) {
     for (int i = 0; i < num_envelopes; i++) {
+    	adsr[i].attack_index = 64;  // Set default index
         adsr[i].attack_rate = attack_rate_lookup[64];
         adsr[i].decay_rate = attack_rate_lookup[64];
         adsr[i].sustain_level = 0.5f;
@@ -28,6 +32,69 @@ void ADSR_Init(ADSR_t *adsr, int num_envelopes) {
     }
 }
 
+void ADSR_UpdateParametersWithEncoders(ADSR_t *adsr) {
+    int current_attack_index = 0;
+    while (current_attack_index < ATTACK_RATE_MAX && attack_rate_lookup[current_attack_index] < adsr->attack_rate) {
+        current_attack_index++;
+    }
+    current_attack_index += ROT1;
+    if (current_attack_index < 0) current_attack_index = 0;
+    if (current_attack_index > ATTACK_RATE_MAX) current_attack_index = ATTACK_RATE_MAX;
+    adsr->attack_rate = attack_rate_lookup[current_attack_index];
+
+}
+
+// In adsr.c
+
+//void ADSR_SetAttackRate(ADSR_t *adsr, int index) {
+//    if (index < 0) {
+//        index = 0;  // Minimum limit
+//    } else if (index >= 128) {
+//        index = 127;  // Maximum limit
+//    }
+//    adsr->attack_rate = attack_rate_lookup[index];
+//}
+void ADSR_SetAttackRate(ADSR_t *adsr, int increment) {
+    adsr->attack_index += increment;  // Increment or decrement the index
+
+    // Limit checking
+    if (adsr->attack_index < 0) {
+        adsr->attack_index = 0;
+    } else if (adsr->attack_index >= 128) {
+        adsr->attack_index = 127;
+    }
+
+    // Update attack rate from lookup table using current index
+    adsr->attack_rate = attack_rate_lookup[adsr->attack_index];
+}
+
+void ADSR_SetDecayRate(ADSR_t *adsr, int index) {
+    if (index < 0) {
+        index = 0;  // Minimum limit
+    } else if (index >= 128) {
+        index = 127;  // Maximum limit
+    }
+    adsr->decay_rate = attack_rate_lookup[index];
+}
+
+void ADSR_SetSustainLevel(ADSR_t *adsr, float sustain_level) {
+	sustain_level += sustain_level * 0.02f;
+    if (sustain_level < 0.0f) {
+        sustain_level = 0.0f;  // Minimum limit
+    } else if (sustain_level > 1.0f) {
+        sustain_level = 1.0f;  // Maximum limit
+    }
+    adsr->sustain_level = (sustain_level * 0.02f);
+}
+
+void ADSR_SetReleaseRate(ADSR_t *adsr, int index) {
+    if (index < 0) {
+        index = 0;  // Minimum limit
+    } else if (index >= 128) {
+        index = 127;  // Maximum limit
+    }
+    adsr->release_rate = attack_rate_lookup[index];
+}
 //void ADSR_UpdateEnvelope_old(ADSR_t *adsr) {
 //
 //    switch (adsr->state) {
@@ -141,41 +208,41 @@ void ADSR_SetGateSignal(ADSR_t *adsr, uint8_t gate_signal_value) {
 //}
 
 // Set decay rate for a specific ADSR instance
-void ADSR_SetDecayRate(ADSR_t *adsr, float decay_rate) {
-    if (decay_rate < 0.001f) {
-        decay_rate = 0.001f;  // Minimum limit
-    }
-    adsr->decay_rate = decay_rate;
-}
-
-// Set sustain level for a specific ADSR instance
-void ADSR_SetSustainLevel(ADSR_t *adsr, float sustain_level) {
-    if (sustain_level < 0.0f) {
-        sustain_level = 0.0f;  // Minimum limit
-    } else if (sustain_level > 1.0f) {
-        sustain_level = 1.0f;  // Maximum limit
-    }
-    adsr->sustain_level = sustain_level;
-}
-
-// Set release rate for a specific ADSR instance
-void ADSR_SetReleaseRate(ADSR_t *adsr, float release_rate) {
-    if (release_rate < 0.001f) {
-        release_rate = 0.001f;  // Minimum limit
-    }
-    adsr->release_rate = release_rate;
-}
-
-
-// Sets the amplitude for a specific ADSR instance
-void ADSR_SetAmplitude(ADSR_t *adsr, float amplitude) {
-    if (amplitude < 0.0f) {
-        amplitude = 0.0f;  // Ensure amplitude is non-negative
-    } else if (amplitude > 1.0f) {
-        amplitude = 1.0f;  // Cap amplitude to 1.0
-    }
-    adsr->amplitude = amplitude;
-}
+//void ADSR_SetDecayRate(ADSR_t *adsr, float decay_rate) {
+//    if (decay_rate < 0.001f) {
+//        decay_rate = 0.001f;  // Minimum limit
+//    }
+//    adsr->decay_rate = decay_rate;
+//}
+//
+//// Set sustain level for a specific ADSR instance
+//void ADSR_SetSustainLevel(ADSR_t *adsr, float sustain_level) {
+//    if (sustain_level < 0.0f) {
+//        sustain_level = 0.0f;  // Minimum limit
+//    } else if (sustain_level > 1.0f) {
+//        sustain_level = 1.0f;  // Maximum limit
+//    }
+//    adsr->sustain_level = sustain_level;
+//}
+//
+//// Set release rate for a specific ADSR instance
+//void ADSR_SetReleaseRate(ADSR_t *adsr, float release_rate) {
+//    if (release_rate < 0.001f) {
+//        release_rate = 0.001f;  // Minimum limit
+//    }
+//    adsr->release_rate = release_rate;
+//}
+//
+//
+//// Sets the amplitude for a specific ADSR instance
+//void ADSR_SetAmplitude(ADSR_t *adsr, float amplitude) {
+//    if (amplitude < 0.0f) {
+//        amplitude = 0.0f;  // Ensure amplitude is non-negative
+//    } else if (amplitude > 1.0f) {
+//        amplitude = 1.0f;  // Cap amplitude to 1.0
+//    }
+//    adsr->amplitude = amplitude;
+//}
 
 // Returns the envelope value (scaled by the amplitude) for a specific ADSR instance
 float ADSR_GetEnvelopeValue(const ADSR_t *adsr) {

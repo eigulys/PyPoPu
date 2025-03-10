@@ -1,5 +1,5 @@
-../Core/Src/MidiHandlers.cpp:28:6:void Handle_Clock()	2
-../Core/Src/MidiHandlers.cpp:36:6:void Handle_Start()	1
-../Core/Src/MidiHandlers.cpp:41:6:void Handle_Stop()	1
-../Core/Src/MidiHandlers.cpp:50:6:void Handle_NoteOn(uint8_t, uint8_t, uint8_t)	5
-../Core/Src/MidiHandlers.cpp:109:6:void Handle_NoteOff(uint8_t, uint8_t, uint8_t)	9
+../Core/Src/MidiHandlers.cpp:32:6:void Handle_Clock()	2
+../Core/Src/MidiHandlers.cpp:40:6:void Handle_Start()	1
+../Core/Src/MidiHandlers.cpp:45:6:void Handle_Stop()	1
+../Core/Src/MidiHandlers.cpp:54:6:void Handle_NoteOn(uint8_t, uint8_t, uint8_t)	2
+../Core/Src/MidiHandlers.cpp:130:6:void Handle_NoteOff(uint8_t, uint8_t, uint8_t)	5

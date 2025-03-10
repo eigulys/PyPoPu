@@ -32,6 +32,7 @@
 #include "lookup_t.h"
 #include "midi2freq.h"
 #include "lfo.h"
+#include "mygtukai.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,7 +79,9 @@ UART_HandleTypeDef huart3;
 uint32_t ramp_counter = 0;
 
 uint32_t new_period = 0;
-extern ADSR_t adsr;
+ADSR_t adsr;
+int16_t ROT1;
+int16_t ROT2;
 //float env1;
 ADSR_t envelopes[NUM_ENVELOPES]; // Array to hold the ADSR envelopes
 
@@ -148,6 +151,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     if (htim->Instance == TIM7) {
 /*  ADSR kreivių formavimas naudojant laikmatį.  */
         // Update the first envelope
+//    	ADSR_UpdateParametersWithEncoders(&adsr);
         ADSR_UpdateEnvelope(&envelopes[0]);
         uint32_t dac_value1 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[0]));
         HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value1);
@@ -156,11 +160,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         uint32_t dac_value2 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[1]));
         HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, dac_value2);
         //
-        ADSR_UpdateEnvelope(&envelopes[2]);
-        uint32_t dac_value3 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[2]));
-        //
-        ADSR_UpdateEnvelope(&envelopes[3]);
-        uint32_t dac_value4 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[3]));
+//        ADSR_UpdateEnvelope(&envelopes[2]);
+//        uint32_t dac_value3 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[2]));
+//        //
+//        ADSR_UpdateEnvelope(&envelopes[3]);
+//        uint32_t dac_value4 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[3]));
     }
 
 //    if (htim->Instance == TIM13) {
@@ -182,21 +186,25 @@ int16_t count2 = 0;
 int16_t position = 0;
 
 int speed =0;
-
+int busena = M_ADSR;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	counter = __HAL_TIM_GET_COUNTER(&htim2);
-	counter2 = __HAL_TIM_GET_COUNTER(&htim3);
-	count = (int16_t)counter;
-	count2 = (int16_t)counter2;
+	ROT1 = ((int16_t)__HAL_TIM_GET_COUNTER(&htim2))/4;
+	ROT2 = ((int16_t)__HAL_TIM_GET_COUNTER(&htim3))/4;
+//	ROT3 = ((int16_t)__HAL_TIM_GET_COUNTER(&htim4))/4;
+//	ROT4 = ((int16_t)__HAL_TIM_GET_COUNTER(&htim5))/4;
 
-	position = count/4;
+//    ADSR_SetAttackRate(&envelopes[0], ROT1);
+//    ADSR_SetDecayRate(&envelopes[0], ROT2);
+	meniu_mygtukai();
 }
 
 void EXTI15_10_IRQHandler(void) {
     if (__HAL_GPIO_EXTI_GET_IT(M1_Pin) != RESET) {
         __HAL_GPIO_EXTI_CLEAR_IT(M1_Pin);
+
+
 //        // Check if the button on PC13 is pressed
 //        if (HAL_GPIO_ReadPin(M1_GPIO_Port, M1_Pin) == GPIO_PIN_RESET) {
 //            // Set LED_D1_GPIO_Port to high
@@ -208,6 +216,7 @@ void EXTI15_10_IRQHandler(void) {
     }
     if (__HAL_GPIO_EXTI_GET_IT(M2_Pin) != RESET) {
         __HAL_GPIO_EXTI_CLEAR_IT(M2_Pin);
+
         // Check if the button on PC12 is pressed
 //        if (HAL_GPIO_ReadPin(M2_GPIO_Port, M2_Pin) == GPIO_PIN_RESET) {
 //            // Set LED_D1_GPIO_Port to high
@@ -217,30 +226,37 @@ void EXTI15_10_IRQHandler(void) {
 //            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
 //        }
     }
+
 }
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	meniu_mygtukai();
     if (GPIO_Pin == M1_Pin) {
+    	busena = M_ADSR;
+
         // Debounce logic
 //        HAL_Delay(20);
-        if (HAL_GPIO_ReadPin(M1_GPIO_Port, M1_Pin) == GPIO_PIN_RESET) {
-            // Button is pressed
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
-        } else {
-            // Set LED_D1_GPIO_Port to low
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
-        }
-    }
+      if  (HAL_GPIO_ReadPin(M1_GPIO_Port, M1_Pin) == GPIO_PIN_RESET) {
+
+          // Button is pressed
+//            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+      } else {
+          // Set LED_D1_GPIO_Port to low
+//            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+      }}
+
     if (GPIO_Pin == M2_Pin) {
+    	busena = M_DAC;
         // Debounce logic
 //        HAL_Delay(20);
         if (HAL_GPIO_ReadPin(M2_GPIO_Port, M2_Pin) == GPIO_PIN_RESET) {
+
             // Button is pressed
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+//            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
         } else {
             // Set LED_D1_GPIO_Port to low
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+//            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
         }
     }
 }
@@ -322,6 +338,7 @@ int main(void)
 //    HAL_TIM_Encoder_Start_IT(&htim5, TIM_CHANNEL_ALL);
 
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    meniu_mygtukai();
 
   /* USER CODE END 2 */
 
@@ -445,7 +462,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 50000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;

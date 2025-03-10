@@ -4,8 +4,9 @@
 ../Core/Src/mcp4728_mod.c:71:19:mcp4728_writePwrDownSelect	1
 ../Core/Src/mcp4728_mod.c:94:19:mcp4728_generalCall	3
 ../Core/Src/mcp4728_mod.c:118:19:DACx60FW	4
-../Core/Src/mcp4728_mod.c:138:19:DACx61FW	4
-../Core/Src/mcp4728_mod.c:168:19:DACx60SW	3
-../Core/Src/mcp4728_mod.c:189:19:DACx61SW	3
-../Core/Src/mcp4728_mod.c:236:19:mcp4728_multiWrite	4
-../Core/Src/mcp4728_mod.c:270:19:mcp4728_sequentialWrite	4
+../Core/Src/mcp4728_mod.c:136:19:DACx60FW_b	3
+../Core/Src/mcp4728_mod.c:154:19:DACx61FW	4
+../Core/Src/mcp4728_mod.c:184:19:DACx60SW	3
+../Core/Src/mcp4728_mod.c:205:19:DACx61SW	3
+../Core/Src/mcp4728_mod.c:252:19:mcp4728_multiWrite	4
+../Core/Src/mcp4728_mod.c:286:19:mcp4728_sequentialWrite	4

@@ -7,6 +7,7 @@
 "./Core/Src/main.o"
 "./Core/Src/mcp4728_mod.o"
 "./Core/Src/midi2freq.o"
+"./Core/Src/mygtukai.o"
 "./Core/Src/ssd1306.o"
 "./Core/Src/ssd1306_fonts.o"
 "./Core/Src/ssd1306_tests.o"

@@ -34,7 +34,8 @@ Core/Src/MidiHandlers.o: ../Core/Src/MidiHandlers.cpp \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Core/Inc/main.h ../Core/Inc/MIDI.h ../Core/Inc/MIDI.h \
- ../Core/Inc/mcp4728_mod.h ../Core/Inc/adsr.h ../Core/Inc/main.h
+ ../Core/Inc/mcp4728_mod.h ../Core/Inc/adsr.h ../Core/Inc/main.h \
+ ../Core/Inc/lookup_t.h
 ../Core/Inc/MidiHandlers.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -75,3 +76,4 @@ Core/Src/MidiHandlers.o: ../Core/Src/MidiHandlers.cpp \
 ../Core/Inc/mcp4728_mod.h:
 ../Core/Inc/adsr.h:
 ../Core/Inc/main.h:
+../Core/Inc/lookup_t.h:
