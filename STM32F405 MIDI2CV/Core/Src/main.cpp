@@ -318,9 +318,38 @@ int main(void)
     HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
     HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 
-    ChannelConfig config;
-    ChannelConfig_2 config2;
-    dac_init(&config, &config2);
+
+//    mcp4728_generalCall(&hi2c1, MCP4728_GENERAL_RESET);
+//    HAL_Delay(10);
+        ChannelConfig config;
+        ChannelConfig_2 config2;
+        dac_init(&config, &config2);
+
+        mcp4728_sequentialWrite(&hi2c1, config, 0);
+//        mcp4728_vrefSelect(&hi2c1, config);
+
+//        mcp4728_configure(&hi2c1, dac1, config);
+//        mcp4728_configure(&hi2c1, dac2, config);
+//        mcp4728_configure(&hi2c1, dac3, config);
+
+//    ChannelConfig dac_config = {
+//        .vref = 0x0F,  // Internal VREF for all 4 channels (1 << 0 | 1 << 1 | 1 << 2 | 1 << 3)
+//        .gain = 0x0F,   // 2x gain for all 4 channels
+//        .val = {0, 0, 0, 0}  // Start with zero output
+//    };
+//    // Configure DAC 0x60
+//    mcp4728_configure(&hi2c1, dac1, dac_config);
+//    // Configure DAC 0x61
+//    mcp4728_configure(&hi2c1, dac2, dac_config);
+//    // Configure DAC 0x62
+//    mcp4728_configure(&hi2c1, dac3, dac_config);
+
+//    ChannelConfig config;
+//    ChannelConfig_2 config2;
+//    dac_init(&config, &config2);
+////    mcp4728_vrefSelect(&hi2c1, config);
+//    DACx60FW(&hi2c1, config);
+
 
 //    ssd1306_Init();
 //    ssd1306_SetCursor(5, 50);
@@ -462,7 +491,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 50000;
+  hi2c1.Init.ClockSpeed = 30000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;

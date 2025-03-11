@@ -9,7 +9,7 @@
 
 
 void dac_init(ChannelConfig *config ,ChannelConfig_2 *config2) {
-    config->vref = 0x0;  // Use VDD as reference voltage
+    config->vref = 0x1;  // Use VDD as reference voltage - 0, internal - 1
     config->gain = 0x1;  // Gain of 1x
     config->val[0] = 0;  // 12-bit DAC value for channel A
     config->val[1] = 0;  // 12-bit DAC value for channel B
@@ -26,6 +26,8 @@ void dac_init(ChannelConfig *config ,ChannelConfig_2 *config2) {
 
 }
 
+
+
 /**
  * @brief Selects the voltage reference for the MCP4728.
  *
@@ -39,7 +41,7 @@ void dac_init(ChannelConfig *config ,ChannelConfig_2 *config2) {
 HAL_StatusTypeDef mcp4728_vrefSelect(I2C_HandleTypeDef *i2cHandler, ChannelConfig config) {
     uint8_t data = MCP4728_VREF_WRITE | config.vref;
     // Transmit the single byte containing the Vref selection
-    return HAL_I2C_Master_Transmit(i2cHandler, dac1, &data, 1, HAL_MAX_DELAY);
+    return HAL_I2C_Master_Transmit(i2cHandler, dac1, &data, 0, HAL_MAX_DELAY);
 }
 
 /**
@@ -289,8 +291,8 @@ HAL_StatusTypeDef mcp4728_sequentialWrite(I2C_HandleTypeDef *i2cHandler, Channel
     uint8_t buf_index = 1;
 
     for (uint8_t i = 0; i < 4 - channel; i++) {
-        buf[buf_index++] = ((config.vref & (1 << (i + channel))) ? 0x80 : 0) | // VREF bit (7th bit)
-                           ((config.gain & (1 << (i + channel))) ? 0x10 : 0) | // Gain bit (4th bit)
+        buf[buf_index++] = ((config.vref & (0 << (i + channel))) ? 0x80 : 0) | // VREF bit (7th bit)
+                           ((config.gain & (0 << (i + channel))) ? 0x10 : 0) | // Gain bit (4th bit)
                            (config.val[i + channel] >> 8); // Upper 8 bits of the 12-bit DAC value
         buf[buf_index++] = config.val[i + channel] & 0xFF; // Lower 8 bits of the 12-bit DAC value
     }
@@ -301,6 +303,27 @@ HAL_StatusTypeDef mcp4728_sequentialWrite(I2C_HandleTypeDef *i2cHandler, Channel
     }
 
     while (HAL_I2C_GetState(i2cHandler) != HAL_I2C_STATE_READY) {}
+
+    return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
+}
+
+
+
+HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config) {
+    uint8_t buf[9];
+
+    // Build multi-write command for all 4 channels
+    buf[0] = MCP4728_MULTI_WRITE;
+    for(uint8_t i = 0; i < 4; i++) {
+        buf[1 + (i*3)] = (i << 1); // Channel select
+        buf[2 + (i*3)] = ((config.vref & (1 << i)) ? 0x80 : 0) |
+                         ((config.gain & (1 << i)) ? 0x10 : 0) |
+                         (config.val[i] >> 8);
+        buf[3 + (i*3)] = config.val[i] & 0xFF;
+    }
+
+    HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(i2cHandler, dac_address, buf, 13, HAL_MAX_DELAY);
+    if(ret != HAL_OK) return ret;
 
     return mcp4728_generalCall(i2cHandler, MCP4728_GENERAL_SOFTWARE_UPDATE);
 }

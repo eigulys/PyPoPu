@@ -6,23 +6,23 @@
 ../Core/Src/main.cpp:203:6:void EXTI15_10_IRQHandler()	3
 ../Core/Src/main.cpp:233:6:void HAL_GPIO_EXTI_Callback(uint16_t)	3
 ../Core/Src/main.cpp:270:5:int main()	1
-../Core/Src/main.cpp:361:6:void SystemClock_Config()	3
-../Core/Src/main.cpp:407:13:void MX_DAC_Init()	4
-../Core/Src/main.cpp:454:13:void MX_I2C1_Init()	2
-../Core/Src/main.cpp:488:13:void MX_I2C2_Init()	2
-../Core/Src/main.cpp:522:13:void MX_SPI2_Init()	2
-../Core/Src/main.cpp:560:13:void MX_TIM2_Init()	3
-../Core/Src/main.cpp:609:13:void MX_TIM3_Init()	3
-../Core/Src/main.cpp:658:13:void MX_TIM4_Init()	3
-../Core/Src/main.cpp:707:13:void MX_TIM5_Init()	3
-../Core/Src/main.cpp:756:13:void MX_TIM7_Init()	3
-../Core/Src/main.cpp:794:13:void MX_TIM13_Init()	2
-../Core/Src/main.cpp:825:13:void MX_USART3_UART_Init()	2
-../Core/Src/main.cpp:856:13:void MX_DMA_Init()	1
-../Core/Src/main.cpp:874:13:void MX_GPIO_Init()	1
-../Core/Src/main.cpp:922:6:void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)	1
-../Core/Src/main.cpp:931:6:void Error_Handler()	1
-../Core/Src/main.cpp:940:1:void __static_initialization_and_destruction_0()	1
-../Core/Src/main.cpp:940:1:void __static_initialization_and_destruction_1()	1
-../Core/Src/main.cpp:940:1:cpp)	1
-../Core/Src/main.cpp:940:1:cpp)	1
+../Core/Src/main.cpp:390:6:void SystemClock_Config()	3
+../Core/Src/main.cpp:436:13:void MX_DAC_Init()	4
+../Core/Src/main.cpp:483:13:void MX_I2C1_Init()	2
+../Core/Src/main.cpp:517:13:void MX_I2C2_Init()	2
+../Core/Src/main.cpp:551:13:void MX_SPI2_Init()	2
+../Core/Src/main.cpp:589:13:void MX_TIM2_Init()	3
+../Core/Src/main.cpp:638:13:void MX_TIM3_Init()	3
+../Core/Src/main.cpp:687:13:void MX_TIM4_Init()	3
+../Core/Src/main.cpp:736:13:void MX_TIM5_Init()	3
+../Core/Src/main.cpp:785:13:void MX_TIM7_Init()	3
+../Core/Src/main.cpp:823:13:void MX_TIM13_Init()	2
+../Core/Src/main.cpp:854:13:void MX_USART3_UART_Init()	2
+../Core/Src/main.cpp:885:13:void MX_DMA_Init()	1
+../Core/Src/main.cpp:903:13:void MX_GPIO_Init()	1
+../Core/Src/main.cpp:951:6:void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)	1
+../Core/Src/main.cpp:960:6:void Error_Handler()	1
+../Core/Src/main.cpp:969:1:void __static_initialization_and_destruction_0()	1
+../Core/Src/main.cpp:969:1:void __static_initialization_and_destruction_1()	1
+../Core/Src/main.cpp:969:1:cpp)	1
+../Core/Src/main.cpp:969:1:cpp)	1

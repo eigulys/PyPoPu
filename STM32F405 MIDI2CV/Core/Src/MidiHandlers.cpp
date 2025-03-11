@@ -72,10 +72,18 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
         ADSR_SetGateSignal(&envelopes[0], 1);
         config.val[0] = fine_DAC; // 12-bit DAC value for channel A
         config.val[1] = coarse_DAC;  // 12-bit DAC value for channel B
-        config.val[2] = velo_CV; // 12-bit DAC value for channel C
-        config.val[3] = yy;  // 12-bit DAC value for channel D
-//        DACx60FW(&hi2c1, config);
+        config.val[2] = 4094; // 12-bit DAC value for channel C
+        config.val[3] = 4094;  // 12-bit DAC value for channel D
+
           DACx60FW(&hi2c1, config);
+
+          config2.val[0] = 4095; // 12-bit DAC value for channel A
+          config2.val[1] = 4095;  // 12-bit DAC value for channel B
+          config2.val[2] = 4095; // 12-bit DAC value for channel C
+          config2.val[3] = 4095;  // 12-bit DAC value for channel D
+          DACx61FW(&hi2c1, config2);
+
+
 //        mcp4728_multiWrite(&hi2c1, config, 1);
 //        DACx60SW(&hi2c1, config, 0);
 //        DACx60SW(&hi2c1, config, 1);

@@ -38,13 +38,14 @@ HAL_StatusTypeDef mcp4728_writePwrDownSelect(I2C_HandleTypeDef *i2cHandler, uint
 HAL_StatusTypeDef mcp4728_generalCall(I2C_HandleTypeDef *i2cHandler, uint8_t command);
 HAL_StatusTypeDef DACx60FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
 HAL_StatusTypeDef DACx60FW_b(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
-HAL_StatusTypeDef DACx61FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config_0x61);
+HAL_StatusTypeDef DACx61FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config2);
 HAL_StatusTypeDef mcp4728_multiWrite(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
 HAL_StatusTypeDef mcp4728_sequentialWrite(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
 HAL_StatusTypeDef DACx60SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
-HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config_0x61, uint8_t channel);
+HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config2, uint8_t channel);
 HAL_StatusTypeDef mcp4728_newI2CAddress(I2C_HandleTypeDef *i2cHandler, uint8_t address);
-HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
+//HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
+HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config);
 
 /* Commands and Modes */
 #define MCP4728_GENERAL_RESET           0x06
@@ -63,6 +64,7 @@ HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, ChannelConfig
 
 #define dac1               (0x60 << 1) // 7-bit address shifted left
 #define dac2               (0x61 << 1) // 7-bit address shifted left
+#define dac3 			   (0x62 << 1)
 
 #define MCP4728_GAIN_1                  0x0
 #define MCP4728_GAIN_2                  0x1
