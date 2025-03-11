@@ -147,14 +147,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 //        update_adsr_flag = true;  // Set the flag to update ADSR parameters
 // //       oled("ADSR Flag = TRUE");
 //    }
-
+    ChannelConfig2 config2;
     if (htim->Instance == TIM7) {
 /*  ADSR kreivių formavimas naudojant laikmatį.  */
         // Update the first envelope
 //    	ADSR_UpdateParametersWithEncoders(&adsr);
         ADSR_UpdateEnvelope(&envelopes[0]);
         uint32_t dac_value1 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[0]));
-        HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value1);
+//        config2.val[2] = dac_value1;
+//        DACx61SW(&hi2c1, config2, 2);
+//        DAC_MW(&hi2c1, dac2, config2, 2);
+//        HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, dac_value1);
         // Update the second envelope
         ADSR_UpdateEnvelope(&envelopes[1]);
         uint32_t dac_value2 = envelope_to_dac_value(ADSR_GetEnvelopeValue(&envelopes[1]));
@@ -314,6 +317,7 @@ int main(void)
 	Port.setHandleStop(Handle_Stop);
 	Port.setHandleNoteOn(Handle_NoteOn);
 	Port.setHandleNoteOff(Handle_NoteOff);
+	Port.setHandleControlChange(Handle_CC);
 
     HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
     HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
@@ -322,14 +326,14 @@ int main(void)
 //    mcp4728_generalCall(&hi2c1, MCP4728_GENERAL_RESET);
 //    HAL_Delay(10);
         ChannelConfig config;
-        ChannelConfig_2 config2;
+        ChannelConfig2 config2;
         dac_init(&config, &config2);
 
         mcp4728_sequentialWrite(&hi2c1, config, 0);
 //        mcp4728_vrefSelect(&hi2c1, config);
 
 //        mcp4728_configure(&hi2c1, dac1, config);
-//        mcp4728_configure(&hi2c1, dac2, config);
+        mcp4728_configure(&hi2c1, dac2, config, 0);
 //        mcp4728_configure(&hi2c1, dac3, config);
 
 //    ChannelConfig dac_config = {
@@ -491,7 +495,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 30000;
+  hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;

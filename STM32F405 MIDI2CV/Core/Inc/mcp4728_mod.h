@@ -27,9 +27,9 @@ typedef struct {
     uint8_t gain;      /* 4-bit gain info: 1=x2, 0=x1 */
     uint16_t val[4];   /* 12-bit numbers specifying outputs for channels A, B, C, D */
 //    uint8_t address;
-} ChannelConfig_2;
+} ChannelConfig2;
 
-void dac_init(ChannelConfig *config, ChannelConfig_2 *config2);
+void dac_init(ChannelConfig *config, ChannelConfig2 *config2);
 
 /* Function Prototypes */
 HAL_StatusTypeDef mcp4728_vrefSelect(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
@@ -38,14 +38,16 @@ HAL_StatusTypeDef mcp4728_writePwrDownSelect(I2C_HandleTypeDef *i2cHandler, uint
 HAL_StatusTypeDef mcp4728_generalCall(I2C_HandleTypeDef *i2cHandler, uint8_t command);
 HAL_StatusTypeDef DACx60FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
 HAL_StatusTypeDef DACx60FW_b(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
-HAL_StatusTypeDef DACx61FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config2);
+HAL_StatusTypeDef DACx61FW(I2C_HandleTypeDef *i2cHandler, ChannelConfig2 config2);
 HAL_StatusTypeDef mcp4728_multiWrite(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
 HAL_StatusTypeDef mcp4728_sequentialWrite(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
-HAL_StatusTypeDef DACx60SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig config, uint8_t channel);
-HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig_2 config2, uint8_t channel);
+HAL_StatusTypeDef DAC_SW(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config, uint8_t channel);
+HAL_StatusTypeDef DACx61SW(I2C_HandleTypeDef *i2cHandler, ChannelConfig2 config2, uint8_t channel);
 HAL_StatusTypeDef mcp4728_newI2CAddress(I2C_HandleTypeDef *i2cHandler, uint8_t address);
 //HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, ChannelConfig config);
-HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config);
+HAL_StatusTypeDef mcp4728_configure(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config, uint8_t channel);
+HAL_StatusTypeDef DAC_FW(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig config);
+HAL_StatusTypeDef DAC_MW(I2C_HandleTypeDef *i2cHandler, uint8_t dac_address, ChannelConfig2 config2, uint8_t channel);
 
 /* Commands and Modes */
 #define MCP4728_GENERAL_RESET           0x06

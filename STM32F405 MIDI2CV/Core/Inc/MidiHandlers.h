@@ -21,3 +21,4 @@ void Handle_Start();
 void Handle_Stop();
 void Handle_NoteOn(uint8_t status, uint8_t data1, uint8_t data2);
 void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
+void Handle_CC(uint8_t channel, uint8_t number, uint8_t value);

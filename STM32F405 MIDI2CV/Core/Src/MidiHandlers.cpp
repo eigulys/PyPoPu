@@ -20,7 +20,7 @@ bool first_note_active = false;
 bool second_note_active = false;
 bool third_note_active = false;
 bool fourth_note_active = false;
-uint32_t pitch1_CV;
+uint32_t pitch1_CV, velo_CV, modv_CV;
 uint32_t pitch2_CV;
 uint32_t pitch3_CV;
 uint32_t pitch4_CV;
@@ -53,7 +53,7 @@ void Handle_Stop() {
 // Callback function for when a Note Off is received
 void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 //    uint32_t pitch_CV = (uint32_t)((note * 0.0833333333 * X) / (3.3 / 4095));  // Calculate pitch CV from MIDI note
-    uint32_t velo_CV = (uint32_t)((velocity / 127.0) * 4095);
+    velo_CV = (uint32_t)((velocity / 127.0) * 4095);
 
 /*  Natos aukščio skaičiavimai  */
     range_idx = note / 24;         // Integer division
@@ -63,26 +63,28 @@ void Handle_NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     fine_DAC = fine_cv[note];
 
     ChannelConfig config;
-    ChannelConfig_2 config2;
+    ChannelConfig2 config2;
 
     if (!first_note_active) {
 //        pitch1_CV = pitch_CV;
         tt=0;
         yy=0;
-        ADSR_SetGateSignal(&envelopes[0], 1);
         config.val[0] = fine_DAC; // 12-bit DAC value for channel A
         config.val[1] = coarse_DAC;  // 12-bit DAC value for channel B
-        config.val[2] = 4094; // 12-bit DAC value for channel C
-        config.val[3] = 4094;  // 12-bit DAC value for channel D
+//        config.val[2] = tt; // 12-bit DAC value for channel C
+//        config.val[3] = tt;  // 12-bit DAC value for channel D
 
-          DACx60FW(&hi2c1, config);
 
-          config2.val[0] = 4095; // 12-bit DAC value for channel A
-          config2.val[1] = 4095;  // 12-bit DAC value for channel B
-          config2.val[2] = 4095; // 12-bit DAC value for channel C
-          config2.val[3] = 4095;  // 12-bit DAC value for channel D
-          DACx61FW(&hi2c1, config2);
-
+//          config2.val[1] = 4095;  // 12-bit DAC value for channel B
+//          config2.val[2] = 4095; // 12-bit DAC value for channel C
+//          config2.val[3] = 4095;  // 12-bit DAC value for channel D
+        DAC_FW(&hi2c1, dac1, config);
+//        config2.val[3] = velo_CV; // 12-bit DAC value for channel A
+//        DACx60FW(&hi2c1, config);
+//        DACx61SW(&hi2c1, config2, 0);
+//        DAC_SW(&hi2c1, dac2, config, 0);
+        ADSR_SetGateSignal(&envelopes[0], 1);
+//        DACx61FW(&hi2c1, config2);
 
 //        mcp4728_multiWrite(&hi2c1, config, 1);
 //        DACx60SW(&hi2c1, config, 0);
@@ -157,4 +159,29 @@ void Handle_NoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 ////        HAL_GPIO_WritePin(GPIOE, gate4_Pin, GPIO_PIN_RESET);  // Turn off gate for fourth note
 //        fourth_note_active = false;  // Fourth note is no longer active
 //    }
+}
+
+void Handle_CC(uint8_t channel, uint8_t number, uint8_t value) {
+    ChannelConfig2 config2;
+    modv_CV = (uint32_t)((value / 127.0) * 4095);
+    if (number == 13) {
+
+    	        config2.val[2] = (uint32_t)((value / 127.0) * 4095); // 12-bit DAC value for channel A
+    	//        DACx60FW(&hi2c1, config);
+
+    	//        DAC_SW(&hi2c1, dac2, config, 0);
+//        midi_cc40_value = value;
+//        Update_TIM13_Frequency(value);
+    }
+//    if (number == 14) {
+//
+//    	        config2.val[3] = (uint32_t)((value / 127.0) * 4095); // 12-bit DAC value for channel A
+//    	//        DACx60FW(&hi2c1, config);
+//
+//    	//        DAC_SW(&hi2c1, dac2, config, 0);
+////        midi_cc40_value = value;
+////        Update_TIM13_Frequency(value);
+//    }
+    DACx61FW(&hi2c1, config2);
+    // Handle other CC messages
 }
