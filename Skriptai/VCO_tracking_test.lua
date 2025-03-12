@@ -303,6 +303,23 @@ function runNextMeasurement()
       summary = summary .. "Results saved to: " .. saved_file_path .. "\n"
       
       reaper.ShowConsoleMsg(summary)
+      
+      -- Generate HTML report automatically
+      local html_success, html_path = generate_html_report(saved_file_path)
+      if html_success then
+        summary = summary .. "HTML report saved to: " .. html_path .. "\n"
+        reaper.ShowConsoleMsg("\nHTML report saved to: " .. html_path)
+        
+        -- Try to open the report in default browser
+        local os_name = reaper.GetOS()
+        if os_name:match("^Win") then
+          reaper.ExecProcess('cmd.exe /c start "" "' .. html_path .. '"', 0)
+        elseif os_name:match("^OSX") or os_name:match("^macOS") then
+          reaper.ExecProcess('open "' .. html_path .. '"', 0)
+        elseif os_name:match("^Lin") then
+          reaper.ExecProcess('xdg-open "' .. html_path .. '"', 0)
+        end
+      end
         
       -- Show success message only once with unique ID to prevent reopening
       local msg_id = "vco_tracking_complete_" .. os.time()
@@ -762,14 +779,14 @@ function generate_report_from_last()
     local success, html_path = generate_html_report(csv_filename)
     if success then
       reaper.ShowMessageBox("HTML report generated at:\n" .. html_path, "Success", 0)
-      -- Try to open the report in default browser
+      -- Try to open the report in default browser with improved reliability
       local os_name = reaper.GetOS()
       if os_name:match("^Win") then
-        os.execute('start "" "' .. html_path .. '"')
+        reaper.ExecProcess('cmd.exe /c start "" "' .. html_path .. '"', 0)
       elseif os_name:match("^OSX") or os_name:match("^macOS") then
-        os.execute('open "' .. html_path .. '"')
+        reaper.ExecProcess('open "' .. html_path .. '"', 0)
       elseif os_name:match("^Lin") then
-        os.execute('xdg-open "' .. html_path .. '"')
+        reaper.ExecProcess('xdg-open "' .. html_path .. '"', 0)
       end
     end
   else
